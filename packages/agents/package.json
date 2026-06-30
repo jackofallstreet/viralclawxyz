@@ -1,5 +1,5 @@
 {
-  "name": "@viralclawxyz/agents",
+  "name": "@viralclaw/agents",
   "version": "0.1.0",
   "private": true,
   "main": "./src/index.ts",
@@ -8,9 +8,9 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@viralclawxyz/core": "workspace:*",
-    "@viralclawxyz/memory": "workspace:*",
-    "@viralclawxyz/integrations": "workspace:*",
+    "@viralclaw/core": "workspace:*",
+    "@viralclaw/memory": "workspace:*",
+    "@viralclaw/integrations": "workspace:*",
     "@langchain/anthropic": "^0.2.0",
     "@langchain/core": "^0.2.0",
     "langchain": "^0.2.0",
