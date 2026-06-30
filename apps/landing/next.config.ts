@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@viralclawos/ui", "@viralclawos/utils"],
+  transpilePackages: ["@viralclaw/ui", "@viralclaw/utils"],
   experimental: {
     optimizePackageImports: ["lucide-react"],
   },
