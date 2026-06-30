@@ -91,7 +91,7 @@ All modules share a persistent memory layer: Qdrant (signal embeddings), Neo4j (
 ```bash
 # 1. Clone
 git clone https://github.com/viralclawlabs/viralclaw.git
-cd viralclawos
+cd viralclaw
 
 # 2. Install
 pnpm install
