@@ -4,11 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const nav = [
-  { href: "/command-center",           label: "Overview",   icon: "⌬",  exact: true },
-  { href: "/command-center/signals",   label: "Signals",    icon: "◈",  exact: false },
-  { href: "/command-center/briefs",    label: "Briefs",     icon: "◻",  exact: false },
-  { href: "/command-center/analytics", label: "Analytics",  icon: "◇",  exact: false },
-  { href: "/command-center/settings",  label: "Settings",   icon: "◎",  exact: false },
+  { href: "/command-center",            label: "Overview",   icon: "⌬",  exact: true },
+  { href: "/command-center/agents",     label: "Agents",     icon: "◈",  exact: false },
+  { href: "/command-center/content",    label: "Content",    icon: "◻",  exact: false },
+  { href: "/command-center/analytics",  label: "Analytics",  icon: "◇",  exact: false },
+  { href: "/command-center/settings",   label: "Settings",   icon: "◎",  exact: false },
 ];
 
 export default function Sidebar() {
@@ -31,7 +31,12 @@ export default function Sidebar() {
       <nav className="flex-1 py-3">
         <ul className="list-none space-y-[1px] px-2">
           {nav.map((item) => {
-            const isActive = item.exact
+            const active = item.exact
+              ? pathname === item.href
+              : pathname.startsWith(item.href) && !item.exact
+                ? pathname === item.href || pathname.startsWith(item.href + "/")
+                : false;
+            const isExactActive = item.exact
               ? pathname === item.href
               : pathname === item.href || pathname.startsWith(item.href + "/");
             return (
@@ -39,7 +44,7 @@ export default function Sidebar() {
                 <Link
                   href={item.href}
                   className={`flex items-center gap-[10px] px-3 py-[7px] font-mono text-[0.57rem] tracking-[0.1em] uppercase transition-all duration-100 no-underline ${
-                    isActive
+                    isExactActive
                       ? "text-[var(--white)] bg-[var(--surface)] border-l border-[var(--crimson)]"
                       : "text-[var(--low)] hover:text-[var(--body)] hover:bg-[var(--surface)]"
                   }`}
@@ -61,14 +66,14 @@ export default function Sidebar() {
           <li>
             <div className="flex items-center gap-[10px] px-3 py-[7px] font-mono text-[0.57rem] tracking-[0.1em] uppercase text-[var(--dim)] cursor-not-allowed select-none">
               <span className="text-[0.72rem] w-4 text-center opacity-40">⟳</span>
-              Signal log
+              Logs
               <span className="ml-auto font-mono text-[0.38rem] tracking-[0.08em] px-[5px] py-[2px] border border-[var(--dim)] text-[var(--dim)]">soon</span>
             </div>
           </li>
           <li>
             <div className="flex items-center gap-[10px] px-3 py-[7px] font-mono text-[0.57rem] tracking-[0.1em] uppercase text-[var(--dim)] cursor-not-allowed select-none">
               <span className="text-[0.72rem] w-4 text-center opacity-40">⊞</span>
-              Watchlist
+              Missions
               <span className="ml-auto font-mono text-[0.38rem] tracking-[0.08em] px-[5px] py-[2px] border border-[var(--dim)] text-[var(--dim)]">soon</span>
             </div>
           </li>
@@ -82,7 +87,7 @@ export default function Sidebar() {
           <span className="font-mono text-[0.48rem] tracking-[0.08em] uppercase text-[var(--amber)]">Building</span>
         </div>
         <p className="font-mono text-[0.44rem] text-[var(--dim)] leading-[1.5]">
-          Signal engine in progress.<br />Intelligence layer coming soon.
+          Agents not live yet.<br />Infrastructure in progress.
         </p>
       </div>
     </aside>
