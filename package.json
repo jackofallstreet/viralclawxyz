@@ -1,9 +1,9 @@
 {
-  "name": "viralclawxyz",
+  "name": "viralclaw",
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "build": "turbo run build --filter=@viralclawxyz/landing",
+    "build": "turbo run build --filter=@viralclaw/landing",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "test": "turbo run test",
