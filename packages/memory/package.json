@@ -1,5 +1,5 @@
 {
-  "name": "@viralclawxyz/memory",
+  "name": "@viralclaw/memory",
   "version": "0.1.0",
   "private": true,
   "main": "./src/index.ts",
@@ -8,7 +8,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@viralclawxyz/core": "workspace:*",
+    "@viralclaw/core": "workspace:*",
     "@qdrant/js-client-rest": "^1.9.0",
     "neo4j-driver": "^5.19.0",
     "ioredis": "^5.3.2",
