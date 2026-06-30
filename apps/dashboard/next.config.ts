@@ -2,10 +2,10 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   transpilePackages: [
-    "@viralclawxyz/ui",
-    "@viralclawxyz/utils",
-    "@viralclawxyz/core",
-    "@viralclawxyz/agents",
+    "@viralclaw/ui",
+    "@viralclaw/utils",
+    "@viralclaw/core",
+    "@viralclaw/agents",
   ],
 };
 
