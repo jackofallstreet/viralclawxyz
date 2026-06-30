@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  transpilePackages: ["@viralclawos/ui", "@viralclawos/utils"],
+  transpilePackages: ["@viralclaw/ui", "@viralclaw/utils"],
   experimental: {
     optimizePackageImports: ["lucide-react"],
   },
