@@ -1,5 +1,5 @@
 {
-  "name": "@viralclawxyz/utils",
+  "name": "@viralclaw/utils",
   "version": "0.1.0",
   "private": true,
   "main": "./src/index.ts",
