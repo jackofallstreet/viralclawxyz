@@ -3,13 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 
 const HLS_CDN = "https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js";
-const VIDEO_SRC =
-  "https://stream.mux.com/NcU3HlHeF7CUL86azTTzpy3Tlb00d6iF3BmCdFslMJYM.m3u8";
+
+const MOBILE_SRC = "https://stream.mux.com/NcU3HlHeF7CUL86azTTzpy3Tlb00d6iF3BmCdFslMJYM.m3u8";
+const DESKTOP_SRC = "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260418_115655_b4d9cd77-feed-43cd-a198-af78ebdf1f7a.mp4";
 
 declare global {
-  interface Window {
-    Hls: any;
-  }
+  interface Window { Hls: any; }
 }
 
 function loadHls(): Promise<void> {
@@ -26,12 +25,15 @@ function loadHls(): Promise<void> {
   });
 }
 
-export function VideoHeroBg({ opacity = 0.4 }: { opacity?: number }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [ready, setReady] = useState(false);
+export function VideoHeroBg({ opacity = 0.45 }: { opacity?: number }) {
+  const mobileRef = useRef<HTMLVideoElement>(null);
+  const desktopRef = useRef<HTMLVideoElement>(null);
+  const [mobileReady, setMobileReady] = useState(false);
+  const [desktopReady, setDesktopReady] = useState(false);
 
+  // Mobile — HLS stream
   useEffect(() => {
-    const video = videoRef.current;
+    const video = mobileRef.current;
     if (!video) return;
     let hls: any;
 
@@ -39,67 +41,84 @@ export function VideoHeroBg({ opacity = 0.4 }: { opacity?: number }) {
       try {
         await loadHls();
         const Hls = window.Hls;
-
         if (Hls.isSupported()) {
           hls = new Hls({ maxBufferLength: 10, backBufferLength: 0, startLevel: -1 });
-          hls.loadSource(VIDEO_SRC);
+          hls.loadSource(MOBILE_SRC);
           hls.attachMedia(video);
           hls.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(() => {}));
         } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-          // Safari native HLS
-          video.src = VIDEO_SRC;
+          video.src = MOBILE_SRC;
           video.addEventListener("loadedmetadata", () => video.play().catch(() => {}));
         }
-
-        video.addEventListener("playing", () => setReady(true), { once: true });
-      } catch {
-        // video failed silently — page still works
-      }
+        video.addEventListener("playing", () => setMobileReady(true), { once: true });
+      } catch { /* silent fail */ }
     })();
 
     return () => { hls?.destroy(); };
   }, []);
 
+  // Desktop — direct mp4
+  useEffect(() => {
+    const video = desktopRef.current;
+    if (!video) return;
+    video.src = DESKTOP_SRC;
+    video.play().catch(() => {});
+    video.addEventListener("playing", () => setDesktopReady(true), { once: true });
+  }, []);
+
+  const sharedVideoClass =
+    "absolute inset-0 w-full h-full object-cover pointer-events-none select-none";
+
   return (
     <>
-      {/* Video */}
+      {/* Mobile video — shown below lg */}
       <video
-        ref={videoRef}
-        autoPlay
-        muted
-        loop
-        playsInline
+        ref={mobileRef}
+        autoPlay muted loop playsInline
         aria-hidden="true"
-        className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none"
+        className={`${sharedVideoClass} block lg:hidden`}
         style={{
-          opacity: ready ? opacity : 0,
+          opacity: mobileReady ? opacity : 0,
           transition: "opacity 1.6s ease",
           zIndex: 0,
         }}
       />
 
-      {/* Gradient vignette — keeps text legible over any video content */}
+      {/* Desktop video — shown at lg+ */}
+      <video
+        ref={desktopRef}
+        autoPlay muted loop playsInline
+        aria-hidden="true"
+        className={`${sharedVideoClass} hidden lg:block`}
+        style={{
+          opacity: desktopReady ? opacity : 0,
+          transition: "opacity 1.6s ease",
+          zIndex: 0,
+        }}
+      />
+
+      {/* Gradient vignette */}
       <div
         aria-hidden="true"
         className="absolute inset-0 pointer-events-none"
         style={{
           zIndex: 1,
           background: [
-            "linear-gradient(to bottom, rgba(5,7,9,0.85) 0%, rgba(5,7,9,0.25) 30%, transparent 55%)",
-            "linear-gradient(to top,   rgba(5,7,9,0.95) 0%, rgba(5,7,9,0.5)  28%, transparent 58%)",
-            "linear-gradient(to right, rgba(5,7,9,0.5)  0%, transparent 35%, transparent 65%, rgba(5,7,9,0.5) 100%)",
+            "linear-gradient(to bottom, rgba(5,7,9,0.82) 0%, rgba(5,7,9,0.2) 32%, transparent 58%)",
+            "linear-gradient(to top,   rgba(5,7,9,0.97) 0%, rgba(5,7,9,0.6) 30%, transparent 62%)",
+            "linear-gradient(to right, rgba(5,7,9,0.45) 0%, transparent 32%, transparent 68%, rgba(5,7,9,0.45) 100%)",
           ].join(", "),
         }}
       />
 
-      {/* Scanline texture — reinforces the terminal / intelligence aesthetic */}
+      {/* Scanline */}
       <div
         aria-hidden="true"
         className="absolute inset-0 pointer-events-none"
         style={{
           zIndex: 2,
           backgroundImage:
-            "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.07) 2px, rgba(0,0,0,0.07) 4px)",
+            "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.06) 2px, rgba(0,0,0,0.06) 4px)",
         }}
       />
     </>
