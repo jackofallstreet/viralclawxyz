@@ -1,11 +1,11 @@
-# Contributing to ViralClawOS
+# Contributing to ViralClaw
 
 Thank you for considering contributing!
 
 ## Development Setup
 
 1. Fork the repository
-2. Clone your fork: `git clone https://github.com/yourusername/viralclawos.git`
+2. Clone your fork: `git clone https://github.com/viralclawlabs/viralclaw.git`
 3. Install dependencies: `pnpm install`
 4. Copy env: `cp .env.example .env`
 5. Start memory services: `docker compose -f infra/docker-compose.yml up -d`
