@@ -183,6 +183,14 @@
   to { transform: rotate(360deg); }
 }
 
+/* ── Reduced motion — respect user preference ────── */
+@media (prefers-reduced-motion: reduce) {
+  [style*="animation"] {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+}
+
 /* ── Theme transition — smooth on toggle ─────────── */
 *, *::before, *::after {
   transition-property: background-color, border-color, color, fill, stroke;
