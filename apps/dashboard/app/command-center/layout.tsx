@@ -7,11 +7,11 @@ export default function CommandCenterLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-[var(--bg)]">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <TopBar />
-        <main className="flex-1 overflow-y-auto bg-[var(--black)] p-6">
+        <main className="flex-1 overflow-y-auto bg-[var(--bg)] p-6">
           {children}
         </main>
       </div>
