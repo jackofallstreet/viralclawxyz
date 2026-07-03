@@ -134,7 +134,6 @@ export default function BriefsPage() {
                       onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = "var(--bg-3)"; }}
                       onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = "var(--bg-2)"; }}
                     >
-                      {/* Type badge */}
                       <span
                         className="font-mono text-[0.44rem] tracking-[0.08em] uppercase px-2 py-[2px] border shrink-0"
                         style={{
@@ -146,7 +145,6 @@ export default function BriefsPage() {
                         {brief.type}
                       </span>
 
-                      {/* Summary */}
                       <div className="flex-1 min-w-0">
                         <p className="text-[0.75rem] text-[var(--text-1)] truncate leading-tight">
                           {parsed.signal_summary || parsed.narrative_summary || "Brief"}
@@ -156,7 +154,6 @@ export default function BriefsPage() {
                         </p>
                       </div>
 
-                      {/* Window */}
                       {brief.window && (
                         <span
                           className="font-mono text-[0.42rem] uppercase shrink-0"
@@ -166,7 +163,6 @@ export default function BriefsPage() {
                         </span>
                       )}
 
-                      {/* Status */}
                       <span
                         className="font-mono text-[0.44rem] tracking-[0.06em] uppercase px-2 py-[2px] border shrink-0"
                         style={{
@@ -259,7 +255,7 @@ function BriefDetail({
             <div className="space-y-2">
               {parsed.angles.map((a: string, i: number) => (
                 <div key={i} className="flex gap-2 p-2 bg-[var(--bg)] border border-[var(--border)]">
-                  <span className="font-mono text-[0.44rem] text-[var(--teal)] shrink-0">0{i+1}</span>
+                  <span className="font-mono text-[0.44rem] text-[var(--teal)] shrink-0">0{i + 1}</span>
                   <p className="text-[0.73rem] text-[var(--text-2)] leading-[1.6]">{a}</p>
                 </div>
               ))}
@@ -288,7 +284,6 @@ function BriefDetail({
         )}
       </div>
 
-      {/* Actions */}
       {brief.status === "pending" && (
         <div className="bg-[var(--bg-3)] px-4 py-3 border-t border-[var(--border)] flex gap-2">
           <button
@@ -320,12 +315,6 @@ function BriefDetail({
     </div>
   );
 }
-
-const WINDOW_COLOR: Record<string, string> = {
-  open:    "var(--green)",
-  closing: "var(--amber)",
-  closed:  "var(--accent)",
-};
 
 function ConvictionBar({ value }: { value: number }) {
   const color = value >= 8 ? "var(--green)" : value >= 6 ? "var(--amber)" : "var(--accent)";
