@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, Barlow, Barlow_Condensed } from "next/font/google";
+import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 
 const ibmPlexMono = IBM_Plex_Mono({
@@ -28,21 +29,21 @@ const barlowCondensed = Barlow_Condensed({
 
 export const metadata: Metadata = {
   title: "ViralClaw — Command Center",
-  description: "Your autonomous creator infrastructure",
+  description: "Synchronization intelligence layer",
+  icons: { icon: "/viralclaw_icon.png", shortcut: "/viralclaw_icon.png" },
   robots: { index: false, follow: false },
 };
 
-export default function DashboardRootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function DashboardRootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="en"
+      data-theme="dark"
       className={`${ibmPlexMono.variable} ${barlow.variable} ${barlowCondensed.variable}`}
     >
-      <body className="bg-[#050505] text-[#F5F5F5]">{children}</body>
+      <body>
+        <ThemeProvider>{children}</ThemeProvider>
+      </body>
     </html>
   );
 }

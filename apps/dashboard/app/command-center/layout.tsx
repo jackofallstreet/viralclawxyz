@@ -1,8 +1,4 @@
-export default function CommandCenterLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function CommandCenterLayout({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ width: "100vw", height: "100vh", overflow: "hidden" }}>
       {children}
