@@ -4,85 +4,153 @@ import { useState, useRef, useEffect, useCallback } from "react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type PanelId = "signals" | "briefs" | "analytics" | "settings" | "feed" | null;
-type Brief = { id: string; type: "alpha" | "content"; conviction: number; window: string; content: string; created_at: string; status: string };
+type WinId = "signal" | "briefs" | "feed" | "analytics" | "settings";
 
-// ─── Icon components ──────────────────────────────────────────────────────────
+interface WindowState {
+  id: WinId;
+  open: boolean;
+  zIndex: number;
+  x: number;
+  y: number;
+  minimized: boolean;
+}
 
-function Icon({ d, size = 18 }: { d: string; size?: number }) {
+type Brief = {
+  id: string;
+  type: "alpha" | "content";
+  conviction: number;
+  window: string;
+  content: string;
+  created_at: string;
+  status: string;
+};
+
+// ─── SVG Icons ────────────────────────────────────────────────────────────────
+
+function Ic({ path, size = 16, stroke = 1.5 }: { path: string; size?: number; stroke?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
-      <path d={d} />
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round">
+      <path d={path} />
     </svg>
   );
 }
 
-const ICONS = {
-  grid:      "M3 3h7v7H3zm11 0h7v7h-7zM3 14h7v7H3zm11 0h7v7h-7z",
-  signal:    "M2 12h3m14 0h3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1M12 2v3m0 14v3M5.6 18.4l2.1-2.1m8.6-8.6 2.1-2.1M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z",
-  alpha:     "M12 2L2 19h20L12 2zm0 6v6m0 2v2",
-  content:   "M4 6h16M4 10h12M4 14h8M4 18h10",
-  analytics: "M3 17l4-8 4 4 4-7 4 4",
-  settings:  "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm0 0v2m0-8V7m5.2 1.8 1.4-1.4M5.4 18.6 6.8 17.2M19.2 17.2l-1.4-1.4M6.8 6.8 5.4 5.4M21 12h-2M5 12H3",
-  feed:      "M22 12h-4l-3 9L9 3l-3 9H2",
-  wallet:    "M21 12V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5zm-10 2H3m14-4h2",
-  close:     "M18 6 6 18M6 6l12 12",
-  minimize:  "M5 12h14",
-  maximize:  "M4 4h7v7H4zm9 0h7v7h-7zM4 13h7v7H4zm9 0h7v7h-7z",
-  chain:     "M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71",
-  zap:       "M13 2 3 14h9l-1 8 10-12h-9l1-8z",
-  eye:       "M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zm11-3a3 3 0 1 0 0 6 3 3 0 0 0 0-6z",
-  send:      "M22 2 11 13M22 2 15 22 11 13 2 9l20-7z",
-  plus:      "M12 5v14M5 12h14",
-  globe:     "M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm0 0a14.5 14.5 0 0 1 4 10 14.5 14.5 0 0 1-4 10A14.5 14.5 0 0 1 8 12 14.5 14.5 0 0 1 12 2zM2 12h20",
+const P = {
+  zap:      "M13 2 3 14h9l-1 8 10-12h-9l1-8z",
+  briefs:   "M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z",
+  feed:     "M22 12h-4l-3 9L9 3l-3 9H2",
+  chart:    "M3 17l4-8 4 4 4-7 4 4",
+  settings: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z",
+  chain:    "M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71",
+  eye:      "M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zm10-3a3 3 0 1 0 2 0",
+  globe:    "M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm0 0a14.5 14.5 0 0 1 4 10 14.5 14.5 0 0 1-4 10A14.5 14.5 0 0 1 8 12 14.5 14.5 0 0 1 12 2zM2 12h20",
+  close:    "M18 6 6 18M6 6l12 12",
+  minus:    "M5 12h14",
+  menu:     "M3 12h18M3 6h18M3 18h18",
+  chevronR: "M9 18l6-6-6-6",
+  send:     "M22 2 11 13M22 2 15 22 11 13 2 9l20-7z",
+  warning:  "M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4m0 4h.01",
 };
 
-// ─── Window Panel ─────────────────────────────────────────────────────────────
+// ─── Draggable Window Shell ───────────────────────────────────────────────────
 
-function Panel({
-  id, title, active, onClose, children, width = 640,
+function Window({
+  id, title, win, onFocus, onClose, onMinimize, children, width = 680, minH = 400,
 }: {
-  id: PanelId; title: string; active: boolean; onClose: () => void; children: React.ReactNode; width?: number;
+  id: WinId; title: string; win: WindowState;
+  onFocus: (id: WinId) => void; onClose: (id: WinId) => void; onMinimize: (id: WinId) => void;
+  children: React.ReactNode; width?: number; minH?: number;
 }) {
-  if (!active) return null;
+  const ref = useRef<HTMLDivElement>(null);
+  const dragging = useRef(false);
+  const offset = useRef({ x: 0, y: 0 });
+  const [pos, setPos] = useState({ x: win.x, y: win.y });
+
+  const onMouseDown = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest("button")) return;
+    dragging.current = true;
+    offset.current = { x: e.clientX - pos.x, y: e.clientY - pos.y };
+    onFocus(id);
+    e.preventDefault();
+  };
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!dragging.current) return;
+      setPos({
+        x: Math.max(0, e.clientX - offset.current.x),
+        y: Math.max(0, e.clientY - offset.current.y),
+      });
+    };
+    const onUp = () => { dragging.current = false; };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
+  }, []);
+
+  if (!win.open) return null;
+
   return (
     <div
-      className="absolute top-[80px] left-[120px] z-50 flex flex-col overflow-hidden"
+      ref={ref}
+      onMouseDown={() => onFocus(id)}
       style={{
-        width: Math.min(width, typeof window !== "undefined" ? window.innerWidth - 140 : width),
-        maxHeight: "calc(100vh - 160px)",
-        background: "rgba(10,10,12,0.97)",
-        border: "1px solid rgba(224,48,48,0.35)",
-        boxShadow: "0 0 0 1px rgba(224,48,48,0.1), 0 24px 80px rgba(0,0,0,0.8)",
+        position: "absolute",
+        left: pos.x,
+        top: pos.y,
+        width: Math.min(width, typeof window !== "undefined" ? window.innerWidth - 80 - pos.x : width),
+        zIndex: win.zIndex,
+        background: "rgba(11,11,13,0.97)",
+        border: "1px solid rgba(224,48,48,0.28)",
+        boxShadow: `0 0 0 1px rgba(224,48,48,0.08), 0 32px 80px rgba(0,0,0,0.85)`,
+        display: "flex",
+        flexDirection: "column",
+        maxHeight: "calc(100vh - 200px)",
       }}
     >
       {/* Title bar */}
       <div
-        className="flex items-center gap-3 px-4 py-[10px] border-b shrink-0"
-        style={{ borderColor: "rgba(224,48,48,0.2)", background: "rgba(224,48,48,0.04)" }}
+        onMouseDown={onMouseDown}
+        style={{
+          display: "flex", alignItems: "center", gap: 10,
+          padding: "8px 14px",
+          borderBottom: "1px solid rgba(224,48,48,0.15)",
+          background: "rgba(224,48,48,0.04)",
+          cursor: "grab", userSelect: "none", flexShrink: 0,
+        }}
       >
-        <span className="text-[var(--accent)] text-[0.6rem]">◆</span>
-        <span className="font-mono text-[0.62rem] tracking-[0.16em] uppercase text-[var(--text-1)] flex-1">{title}</span>
-        <div className="flex items-center gap-1">
-          <button type="button" className="w-6 h-6 flex items-center justify-center text-[var(--text-4)] hover:text-[var(--text-2)] transition-colors">
-            <Icon d={ICONS.minimize} size={11} />
-          </button>
-          <button type="button" className="w-6 h-6 flex items-center justify-center text-[var(--text-4)] hover:text-[var(--text-2)] transition-colors">
-            <Icon d={ICONS.maximize} size={11} />
-          </button>
-          <button type="button" onClick={onClose} className="w-6 h-6 flex items-center justify-center text-[var(--text-4)] hover:text-[var(--accent)] transition-colors">
-            <Icon d={ICONS.close} size={11} />
-          </button>
+        <span style={{ color: "var(--accent)", fontSize: 10 }}>◆</span>
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.6rem", letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--text-1)", flex: 1 }}>
+          {title}
+        </span>
+        <div style={{ display: "flex", gap: 2 }}>
+          {[
+            { icon: P.minus, action: () => onMinimize(id), label: "minimize" },
+            { icon: P.close, action: () => onClose(id),    label: "close" },
+          ].map(btn => (
+            <button key={btn.label} type="button" onClick={btn.action}
+              style={{ width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.25)", transition: "color 0.15s" }}
+              onMouseEnter={e => (e.currentTarget.style.color = btn.label === "close" ? "var(--accent)" : "rgba(255,255,255,0.7)")}
+              onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.25)")}>
+              <Ic path={btn.icon} size={11} />
+            </button>
+          ))}
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto">{children}</div>
+
+      {!win.minimized && (
+        <div style={{ flex: 1, overflowY: "auto", minHeight: minH }}>
+          {children}
+        </div>
+      )}
     </div>
   );
 }
 
-// ─── Signal Query Panel ───────────────────────────────────────────────────────
+// ─── Signal Query Window ──────────────────────────────────────────────────────
 
-function SignalPanel({ onClose, onBriefGenerated }: { onClose: () => void; onBriefGenerated: (b: any) => void }) {
+function SignalWindow({ win, wm }: { win: WindowState; wm: WM }) {
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<"both" | "alpha" | "content">("both");
   const [loading, setLoading] = useState(false);
@@ -90,168 +158,210 @@ function SignalPanel({ onClose, onBriefGenerated }: { onClose: () => void; onBri
   const [content, setContent] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [apiLog, setApiLog] = useState<string | null>(null);
 
   async function run() {
     if (!query.trim() || loading) return;
-    setLoading(true); setError(null); setAlpha(null); setContent(null); setSaved(false);
+    setLoading(true); setError(null); setAlpha(null); setContent(null); setSaved(false); setApiLog(null);
+    const modes = mode === "both" ? ["alpha", "content"] : [mode];
     try {
-      const modes = mode === "both" ? ["alpha", "content"] : [mode];
       const results = await Promise.allSettled(
-        modes.map(m => fetch("/api/generate-brief", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query, mode: m }),
-        }).then(r => r.json()))
+        modes.map(m =>
+          fetch("/api/generate-brief", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ query, mode: m }),
+          }).then(async r => {
+            const json = await r.json();
+            if (!r.ok) throw new Error(json.error || `HTTP ${r.status}`);
+            return json;
+          })
+        )
       );
+      let hasError = false;
       results.forEach((r, i) => {
-        if (r.status === "fulfilled" && r.value.brief) {
-          if (modes[i] === "alpha") setAlpha(r.value.brief);
-          else setContent(r.value.brief);
+        if (r.status === "fulfilled") {
+          if (r.value.brief) {
+            if (modes[i] === "alpha") setAlpha(r.value.brief);
+            else setContent(r.value.brief);
+          } else if (r.value.error) {
+            setError(r.value.error);
+            if (r.value.raw) setApiLog(r.value.raw);
+            hasError = true;
+          }
+        } else {
+          setError(r.reason?.message || "Request failed");
+          hasError = true;
         }
       });
-    } catch (e: any) { setError(e.message); }
-    finally { setLoading(false); }
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function saveAll() {
-    const toSave = [alpha && { type: "alpha", brief: alpha }, content && { type: "content", brief: content }].filter(Boolean);
-    for (const item of toSave as any[]) {
+    const items = [
+      alpha && { type: "alpha", brief: alpha },
+      content && { type: "content", brief: content },
+    ].filter(Boolean) as { type: string; brief: any }[];
+    for (const item of items) {
       await fetch("/api/briefs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: item.type, status: "pending",
-          conviction: item.brief.conviction, window: item.brief.window,
+          conviction: item.brief.conviction,
+          window: item.brief.window,
           content: JSON.stringify(item.brief),
           signal_summary: item.brief.signal_summary || item.brief.narrative_summary,
           chains: item.brief.chains,
         }),
       });
-      onBriefGenerated(item.brief);
     }
     setSaved(true);
+    wm.refreshBriefs();
   }
 
   const wc = (w: string) => w === "open" ? "var(--green)" : w === "closing" ? "var(--amber)" : "var(--accent)";
 
   return (
-    <Panel id="signals" title="Signal Query" active onClose={onClose} width={720}>
-      <div className="p-4 space-y-4">
-        {/* Mode selector */}
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-[0.48rem] text-[var(--text-4)] uppercase tracking-[0.12em]">Output:</span>
+    <Window id="signal" title="Signal Query" win={win} onFocus={wm.focus} onClose={wm.close} onMinimize={wm.minimize} width={720}>
+      <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
+
+        {/* Mode */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.46rem", color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.12em" }}>Output</span>
           {(["both", "alpha", "content"] as const).map(m => (
             <button key={m} type="button" onClick={() => setMode(m)}
-              className="font-mono text-[0.5rem] tracking-[0.08em] uppercase px-3 py-[4px] border transition-all"
               style={{
-                background: mode === m ? "var(--accent)" : "transparent",
-                color: mode === m ? "#fff" : "var(--text-4)",
-                borderColor: mode === m ? "var(--accent)" : "rgba(255,255,255,0.08)",
+                fontFamily: "var(--font-mono)", fontSize: "0.5rem", textTransform: "uppercase", letterSpacing: "0.08em",
+                padding: "4px 12px", border: `1px solid ${mode === m ? "var(--accent)" : "rgba(255,255,255,0.08)"}`,
+                background: mode === m ? "rgba(224,48,48,0.15)" : "transparent",
+                color: mode === m ? "var(--accent)" : "rgba(255,255,255,0.3)", cursor: "pointer", transition: "all 0.15s",
               }}>
               {m === "both" ? "Alpha + Content" : m}
             </button>
           ))}
         </div>
 
-        {/* Query input */}
-        <div>
-          <textarea
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            onKeyDown={e => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") run(); }}
-            placeholder={`Describe a signal, trend, token or ecosystem...\ne.g. "EigenLayer restaking — whale accumulation on ETH and ARB"`}
-            rows={4}
-            className="w-full p-3 font-mono text-[0.7rem] leading-[1.7] resize-none outline-none transition-colors"
+        {/* Textarea */}
+        <textarea value={query} onChange={e => setQuery(e.target.value)}
+          onKeyDown={e => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") run(); }}
+          placeholder={"Describe a signal, trend, token or on-chain pattern...\ne.g. \"EigenLayer restaking — whale accumulation on ETH and ARB\""}
+          rows={4}
+          style={{
+            width: "100%", padding: "12px", resize: "none", outline: "none",
+            fontFamily: "var(--font-mono)", fontSize: "0.7rem", lineHeight: 1.7,
+            background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.08)",
+            color: "var(--text-1)", transition: "border-color 0.15s",
+          }}
+          onFocus={e => (e.target.style.borderColor = "rgba(224,48,48,0.5)")}
+          onBlur={e => (e.target.style.borderColor = "rgba(255,255,255,0.08)")}
+        />
+
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.44rem", color: "rgba(255,255,255,0.2)" }}>⌘↩ to run</span>
+          <button type="button" onClick={run} disabled={loading || !query.trim()}
             style={{
-              background: "rgba(255,255,255,0.03)",
-              border: "1px solid rgba(255,255,255,0.08)",
-              color: "var(--text-1)",
-            }}
-            onFocus={e => (e.target.style.borderColor = "rgba(224,48,48,0.5)")}
-            onBlur={e => (e.target.style.borderColor = "rgba(255,255,255,0.08)")}
-          />
-          <div className="flex items-center justify-between mt-2">
-            <span className="font-mono text-[0.46rem] text-[var(--text-4)]">⌘↩ to run</span>
-            <button type="button" onClick={run} disabled={loading || !query.trim()}
-              className="font-mono text-[0.55rem] tracking-[0.1em] uppercase px-5 py-2 flex items-center gap-2 transition-all"
-              style={{
-                background: loading || !query.trim() ? "rgba(255,255,255,0.04)" : "var(--accent)",
-                color: loading || !query.trim() ? "var(--text-4)" : "#fff",
-              }}>
-              {loading ? <><span className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />Generating...</> : <><Icon d={ICONS.zap} size={12} />Run signal query</>}
-            </button>
-          </div>
+              fontFamily: "var(--font-mono)", fontSize: "0.55rem", textTransform: "uppercase", letterSpacing: "0.1em",
+              padding: "10px 24px", display: "flex", alignItems: "center", gap: 8, cursor: loading || !query.trim() ? "not-allowed" : "pointer",
+              background: loading || !query.trim() ? "rgba(255,255,255,0.04)" : "var(--accent)",
+              color: loading || !query.trim() ? "rgba(255,255,255,0.2)" : "#fff",
+              border: "none", transition: "all 0.15s",
+            }}>
+            {loading
+              ? <><span style={{ width: 12, height: 12, border: "1.5px solid currentColor", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.7s linear infinite", display: "inline-block" }} />Generating...</>
+              : <><Ic path={P.zap} size={13} />Run signal query</>}
+          </button>
         </div>
 
+        {/* Error with detail */}
         {error && (
-          <div className="p-3 border border-[var(--accent-border)] bg-[var(--accent-dim)]">
-            <p className="font-mono text-[0.55rem] text-[var(--accent)]">{error}</p>
-            <p className="font-mono text-[0.48rem] text-[var(--text-4)] mt-1">Check OPENROUTER_API_KEY is set.</p>
+          <div style={{ padding: 12, border: "1px solid rgba(224,48,48,0.3)", background: "rgba(224,48,48,0.06)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+              <Ic path={P.warning} size={14} />
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.56rem", color: "var(--accent)" }}>
+                {error}
+              </span>
+            </div>
+            {error.includes("OPENROUTER") || error.includes("401") || error.includes("key") ? (
+              <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.48rem", color: "rgba(255,255,255,0.3)", lineHeight: 1.6 }}>
+                → Check that <code style={{ color: "var(--teal)" }}>OPENROUTER_API_KEY</code> is set in <code style={{ color: "var(--teal)" }}>apps/dashboard/.env</code> and your Vercel project env vars.
+              </p>
+            ) : error.includes("SUPABASE") || error.includes("relation") ? (
+              <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.48rem", color: "rgba(255,255,255,0.3)", lineHeight: 1.6 }}>
+                → Run the SQL schema in Settings → Supabase setup, then check <code style={{ color: "var(--teal)" }}>NEXT_PUBLIC_SUPABASE_URL</code> and <code style={{ color: "var(--teal)" }}>NEXT_PUBLIC_SUPABASE_ANON_KEY</code>.
+              </p>
+            ) : (
+              <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.48rem", color: "rgba(255,255,255,0.3)", lineHeight: 1.6 }}>
+                → Open browser devtools → Network → check the <code style={{ color: "var(--teal)" }}>/api/generate-brief</code> response for details.
+              </p>
+            )}
+            {apiLog && (
+              <pre style={{ marginTop: 8, fontFamily: "var(--font-mono)", fontSize: "0.44rem", color: "rgba(255,255,255,0.3)", overflow: "auto", maxHeight: 80 }}>{apiLog}</pre>
+            )}
           </div>
         )}
 
         {/* Results */}
         {(alpha || content) && (
-          <div className="grid grid-cols-2 gap-3">
-            {alpha && (
-              <BriefCard title="Alpha Brief" brief={alpha} color="var(--accent)" windowColor={wc(alpha.window)} />
-            )}
-            {content && (
-              <BriefCard title="Content Brief" brief={content} color="var(--teal)" windowColor={wc(content.window)} />
-            )}
+          <div style={{ display: "grid", gridTemplateColumns: alpha && content ? "1fr 1fr" : "1fr", gap: 12 }}>
+            {alpha && <BriefCard title="Alpha Brief" brief={alpha} color="var(--accent)" wc={wc} />}
+            {content && <BriefCard title="Content Brief" brief={content} color="var(--teal)" wc={wc} />}
           </div>
         )}
 
-        {(alpha || content) && !saved && (
-          <div className="flex justify-end">
-            <button type="button" onClick={saveAll}
-              className="font-mono text-[0.55rem] tracking-[0.1em] uppercase px-5 py-2 border border-[var(--teal-border)] bg-[var(--teal-dim)] text-[var(--teal)] hover:bg-[var(--teal)] hover:text-white transition-all flex items-center gap-2">
-              <Icon d={ICONS.send} size={12} />Save to Briefs
-            </button>
+        {(alpha || content) && (
+          <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 12 }}>
+            {saved && <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.5rem", color: "var(--green)" }}>✓ Saved to briefs</span>}
+            {!saved && (
+              <button type="button" onClick={saveAll}
+                style={{
+                  fontFamily: "var(--font-mono)", fontSize: "0.52rem", textTransform: "uppercase", letterSpacing: "0.1em",
+                  padding: "8px 20px", display: "flex", alignItems: "center", gap: 8,
+                  background: "rgba(45,212,191,0.1)", color: "var(--teal)",
+                  border: "1px solid rgba(45,212,191,0.25)", cursor: "pointer",
+                }}>
+                <Ic path={P.send} size={12} />Save to Briefs
+              </button>
+            )}
           </div>
         )}
-        {saved && (
-          <p className="font-mono text-[0.52rem] text-[var(--green)] text-right flex items-center justify-end gap-1">
-            <span>✓</span> Saved to briefs
-          </p>
-        )}
       </div>
-    </Panel>
+    </Window>
   );
 }
 
-function BriefCard({ title, brief, color, windowColor }: { title: string; brief: any; color: string; windowColor: string }) {
+function BriefCard({ title, brief, color, wc }: { title: string; brief: any; color: string; wc: (w: string) => string }) {
   return (
-    <div className="border p-3 space-y-3" style={{ borderColor: color + "33", background: color + "08" }}>
-      <div className="flex items-center justify-between">
-        <span className="font-mono text-[0.52rem] tracking-[0.1em] uppercase" style={{ color }}>{title}</span>
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-[0.46rem]" style={{ color: windowColor }}>{brief.window}</span>
-          <span className="font-mono text-[0.46rem] text-[var(--text-4)]">{brief.conviction}/10</span>
+    <div style={{ border: `1px solid ${color}22`, background: `${color}06`, padding: 14 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.52rem", textTransform: "uppercase", letterSpacing: "0.1em", color }}>{title}</span>
+        <div style={{ display: "flex", gap: 10 }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.46rem", color: wc(brief.window) }}>{brief.window}</span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.46rem", color: "rgba(255,255,255,0.3)" }}>{brief.conviction}/10</span>
         </div>
       </div>
-      <p className="text-[0.73rem] text-[var(--text-2)] leading-[1.65]">
+      <p style={{ fontSize: "0.73rem", color: "var(--text-2)", lineHeight: 1.65, marginBottom: 10 }}>
         {brief.signal_summary || brief.narrative_summary}
       </p>
       {brief.chains?.length > 0 && (
-        <div className="flex flex-wrap gap-1">
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 8 }}>
           {brief.chains.map((c: string) => (
-            <span key={c} className="font-mono text-[0.46rem] px-2 py-[2px] border border-[var(--teal-border)] bg-[var(--teal-dim)] text-[var(--teal)]">{c}</span>
+            <span key={c} style={{ fontFamily: "var(--font-mono)", fontSize: "0.44rem", padding: "2px 8px", border: "1px solid rgba(45,212,191,0.25)", background: "rgba(45,212,191,0.06)", color: "var(--teal)" }}>{c}</span>
           ))}
         </div>
       )}
-      {brief.angles?.length > 0 && (
-        <div className="space-y-1">
-          {brief.angles.slice(0, 2).map((a: string, i: number) => (
-            <div key={i} className="flex gap-2">
-              <span className="font-mono text-[0.44rem] text-[var(--teal)] shrink-0">0{i+1}</span>
-              <p className="text-[0.68rem] text-[var(--text-3)] leading-[1.5]">{a}</p>
-            </div>
-          ))}
+      {brief.angles?.slice(0, 2).map((a: string, i: number) => (
+        <div key={i} style={{ display: "flex", gap: 8, marginBottom: 4 }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.44rem", color: "var(--teal)", flexShrink: 0 }}>0{i+1}</span>
+          <p style={{ fontSize: "0.67rem", color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>{a}</p>
         </div>
-      )}
+      ))}
       {brief.risk_context && (
-        <p className="text-[0.66rem] text-[var(--amber)] leading-[1.5] border-t border-[var(--amber-border)] pt-2 mt-1">
+        <p style={{ fontSize: "0.65rem", color: "var(--amber)", lineHeight: 1.5, borderTop: "1px solid rgba(251,191,36,0.15)", paddingTop: 8, marginTop: 8 }}>
           ⚠ {brief.risk_context}
         </p>
       )}
@@ -259,273 +369,302 @@ function BriefCard({ title, brief, color, windowColor }: { title: string; brief:
   );
 }
 
-// ─── Briefs Panel ─────────────────────────────────────────────────────────────
+// ─── Briefs Window ────────────────────────────────────────────────────────────
 
-function BriefsPanel({ onClose }: { onClose: () => void }) {
-  const [briefs, setBriefs] = useState<Brief[]>([]);
-  const [loading, setLoading] = useState(true);
+function BriefsWindow({ win, wm, briefs, loading }: { win: WindowState; wm: WM; briefs: Brief[]; loading: boolean }) {
   const [selected, setSelected] = useState<Brief | null>(null);
   const [tab, setTab] = useState<"all" | "pending" | "approved">("all");
   const [updating, setUpdating] = useState<string | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const params = tab !== "all" ? `?status=${tab}` : "";
-        const r = await fetch(`/api/briefs${params}`);
-        const { briefs: data } = await r.json();
-        setBriefs(data || []);
-      } catch { } finally { setLoading(false); }
-    })();
-  }, [tab]);
+  const filtered = tab === "all" ? briefs : briefs.filter(b => b.status === tab);
+  const wc = (w: string) => w === "open" ? "var(--green)" : w === "closing" ? "var(--amber)" : "rgba(255,255,255,0.2)";
 
   async function updateStatus(id: string, status: "approved" | "archived") {
     setUpdating(id);
     try {
       await fetch("/api/briefs", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, status }),
       });
-      setBriefs(prev => prev.map(b => b.id === id ? { ...b, status } : b));
+      wm.refreshBriefs();
       if (selected?.id === id) setSelected(prev => prev ? { ...prev, status } : null);
-    } catch { } finally { setUpdating(null); }
+    } finally { setUpdating(null); }
   }
 
-  const wc = (w: string) => w === "open" ? "var(--green)" : w === "closing" ? "var(--amber)" : "var(--text-4)";
   const pending = briefs.filter(b => b.status === "pending").length;
 
   return (
-    <Panel id="briefs" title={`Briefs${pending > 0 ? ` — ${pending} pending` : ""}`} active onClose={onClose} width={760}>
-      <div className="flex h-full" style={{ minHeight: 400 }}>
+    <Window id="briefs" title={`Briefs${pending > 0 ? ` · ${pending} pending` : ""}`} win={win} onFocus={wm.focus} onClose={wm.close} onMinimize={wm.minimize} width={800} minH={480}>
+      <div style={{ display: "flex", height: "100%", minHeight: 480 }}>
         {/* List */}
-        <div className="w-[55%] border-r flex flex-col" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-          <div className="flex border-b px-3" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+        <div style={{ width: "55%", borderRight: "1px solid rgba(255,255,255,0.05)", display: "flex", flexDirection: "column" }}>
+          {/* Tabs */}
+          <div style={{ display: "flex", borderBottom: "1px solid rgba(255,255,255,0.05)", flexShrink: 0 }}>
             {(["all", "pending", "approved"] as const).map(t => (
               <button key={t} type="button" onClick={() => setTab(t)}
-                className="font-mono text-[0.5rem] tracking-[0.08em] uppercase px-3 py-2 border-b-2 transition-colors"
-                style={{ borderColor: tab === t ? "var(--accent)" : "transparent", color: tab === t ? "var(--text-1)" : "var(--text-4)" }}>
+                style={{
+                  fontFamily: "var(--font-mono)", fontSize: "0.5rem", textTransform: "uppercase", letterSpacing: "0.08em",
+                  padding: "8px 16px", background: "transparent", border: "none", cursor: "pointer",
+                  borderBottom: `2px solid ${tab === t ? "var(--accent)" : "transparent"}`,
+                  color: tab === t ? "var(--text-1)" : "rgba(255,255,255,0.25)", transition: "all 0.15s",
+                }}>
                 {t}
               </button>
             ))}
           </div>
-          <div className="flex-1 overflow-y-auto">
+          {/* List items */}
+          <div style={{ flex: 1, overflowY: "auto" }}>
             {loading ? (
-              <div className="py-12 text-center">
-                <div className="inline-block w-3 h-3 border border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
+              <div style={{ padding: 40, textAlign: "center" }}>
+                <span style={{ display: "inline-block", width: 14, height: 14, border: "1.5px solid var(--accent)", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
               </div>
-            ) : briefs.length === 0 ? (
-              <div className="py-12 px-4 text-center">
-                <p className="font-mono text-[0.52rem] text-[var(--text-4)]">No briefs yet.</p>
-                <p className="font-mono text-[0.46rem] text-[var(--text-4)] mt-1">Run a signal query to generate briefs.</p>
+            ) : filtered.length === 0 ? (
+              <div style={{ padding: "40px 16px", textAlign: "center" }}>
+                <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.52rem", color: "rgba(255,255,255,0.2)" }}>No briefs yet.</p>
+                <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.46rem", color: "rgba(255,255,255,0.12)", marginTop: 4 }}>Run a signal query to generate briefs.</p>
               </div>
             ) : (
-              <div className="divide-y" style={{ borderColor: "rgba(255,255,255,0.04)" }}>
-                {briefs.map(b => {
-                  let p: any = {}; try { p = JSON.parse(b.content); } catch {}
-                  const isSelected = selected?.id === b.id;
-                  return (
-                    <div key={b.id} onClick={() => setSelected(isSelected ? null : b)}
-                      className="px-3 py-3 flex items-start gap-2 cursor-pointer transition-colors"
-                      style={{ background: isSelected ? "rgba(224,48,48,0.06)" : "transparent" }}
-                      onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = "rgba(255,255,255,0.02)"; }}
-                      onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = "transparent"; }}>
-                      <span className="font-mono text-[0.44rem] tracking-[0.06em] uppercase px-[6px] py-[2px] border shrink-0 mt-[1px]"
-                        style={{
-                          color: b.type === "alpha" ? "var(--accent)" : "var(--teal)",
-                          borderColor: b.type === "alpha" ? "rgba(224,48,48,0.3)" : "rgba(45,212,191,0.3)",
-                          background: b.type === "alpha" ? "rgba(224,48,48,0.06)" : "rgba(45,212,191,0.06)",
-                        }}>
-                        {b.type}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[0.72rem] text-[var(--text-1)] truncate">{p.signal_summary || p.narrative_summary || "Brief"}</p>
-                        <div className="flex items-center gap-2 mt-[3px]">
-                          <span className="font-mono text-[0.44rem]" style={{ color: wc(b.window) }}>{b.window}</span>
-                          <span className="font-mono text-[0.44rem] text-[var(--text-4)]">·</span>
-                          <span className="font-mono text-[0.44rem] text-[var(--text-4)]">{b.conviction}/10</span>
-                          <span className="font-mono text-[0.44rem] text-[var(--text-4)]">·</span>
-                          <span className="font-mono text-[0.44rem]"
-                            style={{ color: b.status === "approved" ? "var(--green)" : b.status === "archived" ? "var(--text-4)" : "var(--amber)" }}>
-                            {b.status}
-                          </span>
-                        </div>
+              filtered.map(b => {
+                let p: any = {}; try { p = JSON.parse(b.content); } catch {}
+                const isSel = selected?.id === b.id;
+                return (
+                  <div key={b.id} onClick={() => setSelected(isSel ? null : b)}
+                    style={{
+                      padding: "10px 14px", display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer",
+                      borderBottom: "1px solid rgba(255,255,255,0.04)",
+                      background: isSel ? "rgba(224,48,48,0.06)" : "transparent", transition: "background 0.15s",
+                    }}
+                    onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = "rgba(255,255,255,0.02)"; }}
+                    onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = "transparent"; }}>
+                    <span style={{
+                      fontFamily: "var(--font-mono)", fontSize: "0.44rem", textTransform: "uppercase", letterSpacing: "0.06em",
+                      padding: "2px 7px", flexShrink: 0, marginTop: 1,
+                      border: `1px solid ${b.type === "alpha" ? "rgba(224,48,48,0.3)" : "rgba(45,212,191,0.3)"}`,
+                      background: b.type === "alpha" ? "rgba(224,48,48,0.08)" : "rgba(45,212,191,0.08)",
+                      color: b.type === "alpha" ? "var(--accent)" : "var(--teal)",
+                    }}>{b.type}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: "0.72rem", color: "var(--text-1)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {p.signal_summary || p.narrative_summary || "Brief"}
+                      </p>
+                      <div style={{ display: "flex", gap: 8, marginTop: 3 }}>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.44rem", color: wc(b.window) }}>{b.window}</span>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.44rem", color: "rgba(255,255,255,0.2)" }}>·</span>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.44rem", color: "rgba(255,255,255,0.2)" }}>{b.conviction}/10</span>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.44rem", color: "rgba(255,255,255,0.2)" }}>·</span>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.44rem", color: b.status === "approved" ? "var(--green)" : b.status === "pending" ? "var(--amber)" : "rgba(255,255,255,0.2)" }}>
+                          {b.status}
+                        </span>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
+                );
+              })
             )}
           </div>
         </div>
 
         {/* Detail */}
-        <div className="w-[45%] flex flex-col">
+        <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
           {selected ? (() => {
             let p: any = {}; try { p = JSON.parse(selected.content); } catch {}
             return (
               <>
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                <div style={{ flex: 1, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
                   {/* Conviction bar */}
                   <div>
-                    <div className="flex justify-between mb-1">
-                      <span className="font-mono text-[0.46rem] uppercase text-[var(--text-4)]">Conviction</span>
-                      <span className="font-mono text-[0.54rem] font-semibold" style={{ color: selected.conviction >= 8 ? "var(--green)" : selected.conviction >= 6 ? "var(--amber)" : "var(--accent)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.44rem", textTransform: "uppercase", color: "rgba(255,255,255,0.25)" }}>Conviction</span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.54rem", fontWeight: 600, color: selected.conviction >= 8 ? "var(--green)" : selected.conviction >= 6 ? "var(--amber)" : "var(--accent)" }}>
                         {selected.conviction}/10
                       </span>
                     </div>
-                    <div className="h-[2px] rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
-                      <div className="h-full rounded-full" style={{ width: `${selected.conviction * 10}%`, background: selected.conviction >= 8 ? "var(--green)" : selected.conviction >= 6 ? "var(--amber)" : "var(--accent)", transition: "width 0.5s ease" }} />
+                    <div style={{ height: 2, background: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${selected.conviction * 10}%`, background: selected.conviction >= 8 ? "var(--green)" : selected.conviction >= 6 ? "var(--amber)" : "var(--accent)", transition: "width 0.5s ease" }} />
                     </div>
                   </div>
-                  {p.signal_summary && <DR label="Signal" value={p.signal_summary} />}
-                  {p.narrative_summary && <DR label="Narrative" value={p.narrative_summary} />}
+                  {[
+                    { label: "Signal", val: p.signal_summary },
+                    { label: "Narrative", val: p.narrative_summary },
+                    { label: "Cross-chain", val: p.cross_chain_map },
+                    { label: "Reasoning", val: p.conviction_reasoning },
+                  ].filter(r => r.val).map(row => (
+                    <div key={row.label}>
+                      <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.44rem", textTransform: "uppercase", color: "rgba(255,255,255,0.25)", marginBottom: 4 }}>{row.label}</p>
+                      <p style={{ fontSize: "0.72rem", color: "var(--text-2)", lineHeight: 1.65 }}>{row.val}</p>
+                    </div>
+                  ))}
+                  {p.risk_context && (
+                    <div>
+                      <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.44rem", textTransform: "uppercase", color: "var(--amber)", marginBottom: 4 }}>Risk</p>
+                      <p style={{ fontSize: "0.72rem", color: "rgba(251,191,36,0.7)", lineHeight: 1.65 }}>{p.risk_context}</p>
+                    </div>
+                  )}
                   {p.chains?.length > 0 && (
                     <div>
-                      <span className="font-mono text-[0.44rem] uppercase text-[var(--text-4)] block mb-2">Chains</span>
-                      <div className="flex flex-wrap gap-1">
+                      <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.44rem", textTransform: "uppercase", color: "rgba(255,255,255,0.25)", marginBottom: 6 }}>Chains</p>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                         {p.chains.map((c: string) => (
-                          <span key={c} className="font-mono text-[0.48rem] px-2 py-[2px] border border-[var(--teal-border)] bg-[var(--teal-dim)] text-[var(--teal)]">{c}</span>
+                          <span key={c} style={{ fontFamily: "var(--font-mono)", fontSize: "0.48rem", padding: "2px 8px", border: "1px solid rgba(45,212,191,0.25)", background: "rgba(45,212,191,0.06)", color: "var(--teal)" }}>{c}</span>
                         ))}
                       </div>
                     </div>
                   )}
-                  {p.cross_chain_map && <DR label="Cross-chain" value={p.cross_chain_map} />}
-                  {p.conviction_reasoning && <DR label="Reasoning" value={p.conviction_reasoning} />}
-                  {p.risk_context && <DR label="Risk" value={p.risk_context} color="var(--amber)" />}
                   {p.angles?.length > 0 && (
                     <div>
-                      <span className="font-mono text-[0.44rem] uppercase text-[var(--text-4)] block mb-2">Angles</span>
-                      <div className="space-y-2">
+                      <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.44rem", textTransform: "uppercase", color: "rgba(255,255,255,0.25)", marginBottom: 6 }}>Angles</p>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                         {p.angles.map((a: string, i: number) => (
-                          <div key={i} className="flex gap-2 p-2 border" style={{ borderColor: "rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)" }}>
-                            <span className="font-mono text-[0.44rem] text-[var(--teal)] shrink-0">0{i+1}</span>
-                            <p className="text-[0.7rem] text-[var(--text-2)] leading-[1.5]">{a}</p>
+                          <div key={i} style={{ display: "flex", gap: 8, padding: 8, border: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
+                            <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.44rem", color: "var(--teal)", flexShrink: 0 }}>0{i+1}</span>
+                            <p style={{ fontSize: "0.7rem", color: "var(--text-2)", lineHeight: 1.5 }}>{a}</p>
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
-                  {p.audience_framing && <DR label="Audience" value={p.audience_framing} />}
-                  {p.evidence_links_description && <DR label="Evidence" value={p.evidence_links_description} color="var(--teal)" />}
+                  {p.audience_framing && (
+                    <div>
+                      <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.44rem", textTransform: "uppercase", color: "rgba(255,255,255,0.25)", marginBottom: 4 }}>Audience</p>
+                      <p style={{ fontSize: "0.72rem", color: "var(--text-2)", lineHeight: 1.65 }}>{p.audience_framing}</p>
+                    </div>
+                  )}
                   {p.social_lag_hours !== undefined && (
-                    <div className="flex justify-between py-2 border-t" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-                      <span className="font-mono text-[0.44rem] text-[var(--text-4)]">Social lag</span>
-                      <span className="font-mono text-[0.52rem] text-[var(--green)]">{p.social_lag_hours}h ahead</span>
+                    <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.44rem", color: "rgba(255,255,255,0.25)" }}>Social lag</span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.52rem", color: "var(--green)" }}>{p.social_lag_hours}h ahead</span>
                     </div>
                   )}
                 </div>
                 {selected.status === "pending" && (
-                  <div className="p-3 border-t flex gap-2 shrink-0" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+                  <div style={{ padding: "10px 14px", borderTop: "1px solid rgba(255,255,255,0.05)", display: "flex", gap: 8, flexShrink: 0 }}>
                     <button type="button" onClick={() => updateStatus(selected.id, "approved")} disabled={!!updating}
-                      className="flex-1 font-mono text-[0.52rem] tracking-[0.08em] uppercase py-2 transition-all flex items-center justify-center gap-2"
-                      style={{ background: "rgba(74,222,128,0.15)", color: "var(--green)", border: "1px solid rgba(74,222,128,0.25)" }}>
+                      style={{ flex: 1, fontFamily: "var(--font-mono)", fontSize: "0.52rem", textTransform: "uppercase", padding: "8px", background: "rgba(74,222,128,0.12)", color: "var(--green)", border: "1px solid rgba(74,222,128,0.25)", cursor: "pointer" }}>
                       ✓ Approve
                     </button>
                     <button type="button" onClick={() => updateStatus(selected.id, "archived")} disabled={!!updating}
-                      className="font-mono text-[0.52rem] tracking-[0.08em] uppercase px-4 py-2 border transition-all"
-                      style={{ borderColor: "rgba(255,255,255,0.08)", color: "var(--text-3)" }}>
+                      style={{ fontFamily: "var(--font-mono)", fontSize: "0.52rem", textTransform: "uppercase", padding: "8px 16px", background: "transparent", color: "rgba(255,255,255,0.3)", border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer" }}>
                       Archive
                     </button>
-                  </div>
-                )}
-                {selected.status === "approved" && (
-                  <div className="p-3 border-t shrink-0" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-                    <p className="font-mono text-[0.48rem] text-[var(--green)] flex items-center gap-2">✓ Approved</p>
                   </div>
                 )}
               </>
             );
           })() : (
-            <div className="flex-1 flex items-center justify-center">
-              <p className="font-mono text-[0.48rem] text-[var(--text-4)]">Select a brief</p>
+            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.48rem", color: "rgba(255,255,255,0.15)" }}>Select a brief</p>
             </div>
           )}
         </div>
       </div>
-    </Panel>
+    </Window>
   );
 }
 
-function DR({ label, value, color }: { label: string; value: string; color?: string }) {
+// ─── Feed Window ──────────────────────────────────────────────────────────────
+
+function FeedWindow({ win, wm, briefs }: { win: WindowState; wm: WM; briefs: Brief[] }) {
+  const recent = briefs.slice(0, 8);
   return (
-    <div>
-      <p className="font-mono text-[0.44rem] uppercase mb-1" style={{ color: color || "var(--text-4)" }}>{label}</p>
-      <p className="text-[0.72rem] text-[var(--text-2)] leading-[1.65]">{value}</p>
-    </div>
-  );
-}
-
-// ─── Analytics Panel ──────────────────────────────────────────────────────────
-
-function AnalyticsPanel({ onClose }: { onClose: () => void }) {
-  const [stats, setStats] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const r = await fetch("/api/briefs");
-        const { briefs = [] } = await r.json();
-        const total = briefs.length;
-        const alpha = briefs.filter((b: any) => b.type === "alpha").length;
-        const content = briefs.filter((b: any) => b.type === "content").length;
-        const approved = briefs.filter((b: any) => b.status === "approved").length;
-        const avgConv = total ? (briefs.reduce((s: number, b: any) => s + (b.conviction || 0), 0) / total).toFixed(1) : "—";
-        const openW = briefs.filter((b: any) => b.window === "open").length;
-        setStats({ total, alpha, content, approved, avgConv, openW });
-      } catch { } finally { setLoading(false); }
-    })();
-  }, []);
-
-  return (
-    <Panel id="analytics" title="Analytics" active onClose={onClose} width={560}>
-      <div className="p-4">
-        {loading ? (
-          <div className="py-12 text-center"><div className="inline-block w-3 h-3 border border-[var(--accent)] border-t-transparent rounded-full animate-spin" /></div>
-        ) : !stats || stats.total === 0 ? (
-          <div className="py-16 text-center space-y-2">
-            <p className="font-mono text-[0.52rem] text-[var(--text-3)]">No data yet</p>
-            <p className="font-mono text-[0.46rem] text-[var(--text-4)]">Generate briefs to see analytics.</p>
+    <Window id="feed" title="Signal Feed" win={win} onFocus={wm.focus} onClose={wm.close} onMinimize={wm.minimize} width={460} minH={300}>
+      <div style={{ padding: 16 }}>
+        {recent.length === 0 ? (
+          <div style={{ padding: "48px 0", textAlign: "center" }}>
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent)", animation: "blinkA 1.5s ease infinite", display: "inline-block" }} />
+            </div>
+            <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.52rem", color: "rgba(255,255,255,0.25)" }}>Monitoring signals</p>
+            <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.46rem", color: "rgba(255,255,255,0.15)", marginTop: 4 }}>Run a query to start generating intelligence.</p>
           </div>
         ) : (
-          <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { label: "Total briefs", value: stats.total, color: "var(--text-1)" },
-                { label: "Alpha", value: stats.alpha, color: "var(--accent)" },
-                { label: "Content", value: stats.content, color: "var(--teal)" },
-                { label: "Approved", value: stats.approved, color: "var(--green)" },
-                { label: "Avg conviction", value: `${stats.avgConv}/10`, color: "var(--amber)" },
-                { label: "Open windows", value: stats.openW, color: "var(--green)" },
-              ].map(s => (
-                <div key={s.label} className="p-3 border text-center" style={{ borderColor: "rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)" }}>
-                  <div className="font-cond font-bold text-[1.5rem] leading-none mb-1" style={{ color: s.color }}>{s.value}</div>
-                  <div className="font-mono text-[0.44rem] uppercase text-[var(--text-4)]">{s.label}</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {recent.map((b, i) => {
+              let p: any = {}; try { p = JSON.parse(b.content); } catch {}
+              return (
+                <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: 12, border: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
+                  <span style={{ width: 5, height: 5, borderRadius: "50%", flexShrink: 0, marginTop: 4, background: b.type === "alpha" ? "var(--accent)" : "var(--teal)", animation: "blinkA 2s ease infinite", display: "inline-block" }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", gap: 8, marginBottom: 4 }}>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.46rem", textTransform: "uppercase", color: b.type === "alpha" ? "var(--accent)" : "var(--teal)" }}>{b.type}</span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.44rem", color: b.window === "open" ? "var(--green)" : b.window === "closing" ? "var(--amber)" : "rgba(255,255,255,0.2)" }}>{b.window}</span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.44rem", color: "rgba(255,255,255,0.2)", marginLeft: "auto" }}>{b.conviction}/10</span>
+                    </div>
+                    <p style={{ fontSize: "0.71rem", color: "var(--text-2)", lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+                      {p.signal_summary || p.narrative_summary}
+                    </p>
+                  </div>
                 </div>
-              ))}
-            </div>
-            <div className="border p-3" style={{ borderColor: "rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)" }}>
-              <p className="font-mono text-[0.46rem] uppercase text-[var(--text-4)] mb-3">Type split</p>
-              <div className="h-[8px] rounded overflow-hidden flex">
-                <div style={{ width: `${stats.total ? (stats.alpha / stats.total) * 100 : 50}%`, background: "var(--accent)", opacity: 0.8 }} />
-                <div style={{ flex: 1, background: "var(--teal)", opacity: 0.8 }} />
-              </div>
-              <div className="flex justify-between mt-1">
-                <span className="font-mono text-[0.44rem] text-[var(--accent)]">Alpha {stats.alpha}</span>
-                <span className="font-mono text-[0.44rem] text-[var(--teal)]">Content {stats.content}</span>
-              </div>
-            </div>
+              );
+            })}
           </div>
         )}
       </div>
-    </Panel>
+    </Window>
   );
 }
 
-// ─── Settings Panel ───────────────────────────────────────────────────────────
+// ─── Analytics Window ─────────────────────────────────────────────────────────
 
-function SettingsPanel({ onClose }: { onClose: () => void }) {
+function AnalyticsWindow({ win, wm, briefs, loading }: { win: WindowState; wm: WM; briefs: Brief[]; loading: boolean }) {
+  const total = briefs.length;
+  const alpha = briefs.filter(b => b.type === "alpha").length;
+  const content = briefs.filter(b => b.type === "content").length;
+  const approved = briefs.filter(b => b.status === "approved").length;
+  const avgConv = total ? (briefs.reduce((s, b) => s + (b.conviction || 0), 0) / total).toFixed(1) : "—";
+  const openW = briefs.filter(b => b.window === "open").length;
+
+  return (
+    <Window id="analytics" title="Analytics" win={win} onFocus={wm.focus} onClose={wm.close} onMinimize={wm.minimize} width={520} minH={300}>
+      <div style={{ padding: 16 }}>
+        {loading ? (
+          <div style={{ padding: 40, textAlign: "center" }}>
+            <span style={{ display: "inline-block", width: 14, height: 14, border: "1.5px solid var(--accent)", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+          </div>
+        ) : total === 0 ? (
+          <div style={{ padding: "48px 0", textAlign: "center" }}>
+            <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.52rem", color: "rgba(255,255,255,0.2)" }}>No data yet</p>
+            <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.46rem", color: "rgba(255,255,255,0.12)", marginTop: 4 }}>Generate briefs to see analytics.</p>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+              {[
+                { label: "Total", value: total, color: "var(--text-1)" },
+                { label: "Alpha", value: alpha, color: "var(--accent)" },
+                { label: "Content", value: content, color: "var(--teal)" },
+                { label: "Approved", value: approved, color: "var(--green)" },
+                { label: "Avg conviction", value: `${avgConv}/10`, color: "var(--amber)" },
+                { label: "Open windows", value: openW, color: "var(--green)" },
+              ].map(s => (
+                <div key={s.label} style={{ padding: "14px 12px", border: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)", textAlign: "center" }}>
+                  <div style={{ fontFamily: "var(--font-barlow-condensed)", fontSize: "1.6rem", fontWeight: 700, lineHeight: 1, marginBottom: 4, color: s.color }}>{s.value}</div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "0.44rem", textTransform: "uppercase", color: "rgba(255,255,255,0.25)" }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+            {total > 0 && (
+              <div style={{ padding: 14, border: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
+                <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.44rem", textTransform: "uppercase", color: "rgba(255,255,255,0.25)", marginBottom: 10 }}>Type split</p>
+                <div style={{ height: 6, background: "rgba(255,255,255,0.05)", borderRadius: 2, overflow: "hidden", display: "flex" }}>
+                  <div style={{ width: `${total ? (alpha / total) * 100 : 50}%`, background: "var(--accent)", opacity: 0.8 }} />
+                  <div style={{ flex: 1, background: "var(--teal)", opacity: 0.8 }} />
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.44rem", color: "var(--accent)" }}>Alpha {alpha}</span>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.44rem", color: "var(--teal)" }}>Content {content}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </Window>
+  );
+}
+
+// ─── Settings Window ──────────────────────────────────────────────────────────
+
+function SettingsWindow({ win, wm }: { win: WindowState; wm: WM }) {
   const [focus, setFocus] = useState("");
   const [minConv, setMinConv] = useState(7);
   const [ecosystems, setEcosystems] = useState(["ETH", "SOL", "BASE", "ARB"]);
@@ -533,9 +672,11 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
   const [newEco, setNewEco] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [inited, setInited] = useState(false);
 
   useEffect(() => {
+    if (!win.open || inited) return;
+    setInited(true);
     (async () => {
       try {
         const r = await fetch("/api/settings");
@@ -546,97 +687,91 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
           setEcosystems(settings.ecosystems || ["ETH", "SOL", "BASE", "ARB"]);
           setVoice(settings.creator_voice || "");
         }
-      } catch { } finally { setLoading(false); }
+      } catch {}
     })();
-  }, []);
+  }, [win.open, inited]);
 
   async function save() {
     setSaving(true); setSaved(false);
     try {
       await fetch("/api/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ focus_area: focus, min_conviction: minConv, ecosystems, creator_voice: voice, output_type: "both" }),
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
-    } catch { } finally { setSaving(false); }
+    } finally { setSaving(false); }
   }
 
+  const inputStyle: React.CSSProperties = {
+    width: "100%", padding: "8px 12px", fontFamily: "var(--font-mono)", fontSize: "0.67rem",
+    background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.08)",
+    color: "var(--text-1)", outline: "none", transition: "border-color 0.15s",
+  };
+
   return (
-    <Panel id="settings" title="Settings" active onClose={onClose} width={520}>
-      <div className="p-4 space-y-5">
-        {loading ? (
-          <div className="py-12 text-center"><div className="inline-block w-3 h-3 border border-[var(--accent)] border-t-transparent rounded-full animate-spin" /></div>
-        ) : (
-          <>
-            <SField label="Focus area" hint="Shapes which signals score higher">
-              <input type="text" value={focus} onChange={e => setFocus(e.target.value)}
-                placeholder="e.g. DeFi, restaking, memecoins"
-                className="w-full px-3 py-2 font-mono text-[0.67rem] outline-none transition-colors"
-                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", color: "var(--text-1)" }}
-                onFocus={e => (e.target.style.borderColor = "rgba(224,48,48,0.5)")}
-                onBlur={e => (e.target.style.borderColor = "rgba(255,255,255,0.08)")} />
-            </SField>
+    <Window id="settings" title="Settings" win={win} onFocus={wm.focus} onClose={wm.close} onMinimize={wm.minimize} width={520} minH={400}>
+      <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 16 }}>
 
-            <SField label={`Min conviction: ${minConv}/10`} hint="Signals below this are filtered before brief generation">
-              <input type="range" min={1} max={10} step={1} value={minConv} onChange={e => setMinConv(Number(e.target.value))}
-                className="w-full" style={{ accentColor: "var(--accent)" }} />
-            </SField>
+        <SF label="Focus area" hint="Shapes which signals score higher">
+          <input type="text" value={focus} onChange={e => setFocus(e.target.value)} placeholder="e.g. DeFi, restaking, memecoins"
+            style={inputStyle}
+            onFocus={e => (e.target.style.borderColor = "rgba(224,48,48,0.5)")}
+            onBlur={e => (e.target.style.borderColor = "rgba(255,255,255,0.08)")} />
+        </SF>
 
-            <SField label="Ecosystem watchlist" hint="Scanner prioritises these chains">
-              <div className="flex flex-wrap gap-1 mb-2">
-                {ecosystems.map(e => (
-                  <span key={e} className="flex items-center gap-1 font-mono text-[0.48rem] px-2 py-[3px] border border-[var(--teal-border)] bg-[var(--teal-dim)] text-[var(--teal)]">
-                    {e}
-                    <button type="button" onClick={() => setEcosystems(prev => prev.filter(x => x !== e))} className="text-[var(--text-4)] hover:text-[var(--accent)] ml-1">×</button>
-                  </span>
-                ))}
-              </div>
-              <div className="flex gap-2">
-                <input type="text" value={newEco} onChange={e => setNewEco(e.target.value)}
-                  onKeyDown={e => { if (e.key === "Enter" && newEco.trim()) { setEcosystems(p => [...p, newEco.trim().toUpperCase()]); setNewEco(""); } }}
-                  placeholder="Add chain (Enter)"
-                  className="flex-1 px-3 py-2 font-mono text-[0.67rem] outline-none"
-                  style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", color: "var(--text-1)" }}
-                  onFocus={e => (e.target.style.borderColor = "rgba(224,48,48,0.5)")}
-                  onBlur={e => (e.target.style.borderColor = "rgba(255,255,255,0.08)")} />
-              </div>
-            </SField>
+        <SF label={`Min conviction: ${minConv}/10`} hint="Signals below this are filtered">
+          <input type="range" min={1} max={10} step={1} value={minConv} onChange={e => setMinConv(Number(e.target.value))}
+            style={{ width: "100%", accentColor: "var(--accent)" }} />
+        </SF>
 
-            <SField label="Creator voice" hint="Shapes content brief angles and framing">
-              <textarea value={voice} onChange={e => setVoice(e.target.value)}
-                placeholder="Describe your tone and audience..."
-                rows={3} className="w-full px-3 py-2 font-mono text-[0.67rem] outline-none resize-none leading-[1.6]"
-                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", color: "var(--text-1)" }}
-                onFocus={e => (e.target.style.borderColor = "rgba(224,48,48,0.5)")}
-                onBlur={e => (e.target.style.borderColor = "rgba(255,255,255,0.08)")} />
-            </SField>
+        <SF label="Ecosystem watchlist" hint="Scanner prioritises these chains">
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+            {ecosystems.map(e => (
+              <span key={e} style={{ display: "flex", alignItems: "center", gap: 4, fontFamily: "var(--font-mono)", fontSize: "0.48rem", padding: "3px 8px", border: "1px solid rgba(45,212,191,0.25)", background: "rgba(45,212,191,0.06)", color: "var(--teal)" }}>
+                {e}
+                <button type="button" onClick={() => setEcosystems(p => p.filter(x => x !== e))}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.3)", fontSize: "0.7rem", lineHeight: 1, padding: 0 }}>×</button>
+              </span>
+            ))}
+          </div>
+          <input type="text" value={newEco} onChange={e => setNewEco(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && newEco.trim()) { setEcosystems(p => [...p, newEco.trim().toUpperCase()]); setNewEco(""); } }}
+            placeholder="Add chain — press Enter" style={{ ...inputStyle, width: "auto", minWidth: 200 }}
+            onFocus={e => (e.target.style.borderColor = "rgba(224,48,48,0.5)")}
+            onBlur={e => (e.target.style.borderColor = "rgba(255,255,255,0.08)")} />
+        </SF>
 
-            <div className="flex items-center justify-between">
-              {saved && <span className="font-mono text-[0.5rem] text-[var(--green)] flex items-center gap-1">✓ Saved</span>}
-              <div className="ml-auto">
-                <button type="button" onClick={save} disabled={saving}
-                  className="font-mono text-[0.55rem] tracking-[0.1em] uppercase px-5 py-2 transition-all"
-                  style={{ background: "var(--accent)", color: "#fff", opacity: saving ? 0.6 : 1 }}>
-                  {saving ? "Saving..." : "Save settings"}
-                </button>
-              </div>
-            </div>
+        <SF label="Creator voice" hint="Shapes content brief angles">
+          <textarea value={voice} onChange={e => setVoice(e.target.value)} rows={3}
+            placeholder="Describe your tone and audience..."
+            style={{ ...inputStyle, resize: "none", lineHeight: 1.6 }}
+            onFocus={e => (e.target.style.borderColor = "rgba(224,48,48,0.5)")}
+            onBlur={e => (e.target.style.borderColor = "rgba(255,255,255,0.08)")} />
+        </SF>
 
-            {/* Supabase SQL */}
-            <details className="border" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-              <summary className="px-3 py-2 font-mono text-[0.5rem] uppercase text-[var(--text-4)] cursor-pointer">
-                Supabase setup SQL
-              </summary>
-              <pre className="p-3 text-[0.55rem] font-mono text-[var(--text-3)] overflow-x-auto leading-[1.7] select-all" style={{ background: "rgba(255,255,255,0.02)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          {saved && <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.5rem", color: "var(--green)" }}>✓ Saved</span>}
+          <div style={{ marginLeft: "auto" }}>
+            <button type="button" onClick={save} disabled={saving}
+              style={{ fontFamily: "var(--font-mono)", fontSize: "0.55rem", textTransform: "uppercase", letterSpacing: "0.1em", padding: "10px 24px", background: "var(--accent)", color: "#fff", border: "none", cursor: "pointer", opacity: saving ? 0.6 : 1 }}>
+              {saving ? "Saving..." : "Save settings"}
+            </button>
+          </div>
+        </div>
+
+        {/* SQL schema */}
+        <details style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
+          <summary style={{ padding: "8px 12px", fontFamily: "var(--font-mono)", fontSize: "0.5rem", textTransform: "uppercase", color: "rgba(255,255,255,0.3)", cursor: "pointer" }}>
+            Supabase setup SQL — run once
+          </summary>
+          <pre style={{ padding: 12, fontFamily: "var(--font-mono)", fontSize: "0.55rem", color: "rgba(255,255,255,0.35)", lineHeight: 1.7, overflow: "auto", userSelect: "all", background: "rgba(255,255,255,0.02)" }}>
 {`create table if not exists signals (
   id uuid default gen_random_uuid() primary key,
   created_at timestamptz default now(),
   chain text, type text, summary text,
-  conviction int, window text,
-  chains text[], social_lag_hours int,
-  status text default 'new'
+  conviction int, window text, chains text[],
+  social_lag_hours int, status text default 'new'
 );
 create table if not exists briefs (
   id uuid default gen_random_uuid() primary key,
@@ -657,345 +792,415 @@ create table if not exists settings (
 alter table signals disable row level security;
 alter table briefs disable row level security;
 alter table settings disable row level security;`}
-              </pre>
-            </details>
-          </>
-        )}
+          </pre>
+        </details>
+
+        {/* Env vars */}
+        <div style={{ border: "1px solid rgba(255,255,255,0.06)", padding: 12 }}>
+          <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.46rem", textTransform: "uppercase", color: "rgba(255,255,255,0.25)", marginBottom: 10 }}>Required env vars</p>
+          {[
+            { key: "OPENROUTER_API_KEY", required: true, note: "Brief generation" },
+            { key: "NEXT_PUBLIC_SUPABASE_URL", required: true, note: "Database" },
+            { key: "NEXT_PUBLIC_SUPABASE_ANON_KEY", required: true, note: "Database auth" },
+          ].map(v => (
+            <div key={v.key} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.44rem", textTransform: "uppercase", padding: "2px 6px", border: `1px solid ${v.required ? "rgba(224,48,48,0.3)" : "rgba(255,255,255,0.08)"}`, color: v.required ? "var(--accent)" : "rgba(255,255,255,0.2)" }}>
+                {v.required ? "req" : "opt"}
+              </span>
+              <code style={{ fontFamily: "var(--font-mono)", fontSize: "0.58rem", color: "var(--teal)" }}>{v.key}</code>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.46rem", color: "rgba(255,255,255,0.2)" }}>{v.note}</span>
+            </div>
+          ))}
+        </div>
       </div>
-    </Panel>
+    </Window>
   );
 }
 
-function SField({ label, hint, children }: { label: string; hint: string; children: React.ReactNode }) {
+function SF({ label, hint, children }: { label: string; hint: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="font-mono text-[0.5rem] tracking-[0.12em] uppercase text-[var(--text-3)] mb-1">{label}</p>
-      <p className="font-mono text-[0.44rem] text-[var(--text-4)] mb-2">{hint}</p>
+      <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.5rem", textTransform: "uppercase", letterSpacing: "0.12em", color: "rgba(255,255,255,0.35)", marginBottom: 4 }}>{label}</p>
+      <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.44rem", color: "rgba(255,255,255,0.18)", marginBottom: 8 }}>{hint}</p>
       {children}
     </div>
   );
 }
 
-// ─── Live Feed Panel ──────────────────────────────────────────────────────────
+// ─── Window Manager ───────────────────────────────────────────────────────────
 
-function FeedPanel({ onClose, recentBriefs }: { onClose: () => void; recentBriefs: any[] }) {
-  return (
-    <Panel id="feed" title="Signal Feed" active onClose={onClose} width={480}>
-      <div className="p-4">
-        {recentBriefs.length === 0 ? (
-          <div className="py-12 text-center space-y-2">
-            <div className="flex justify-center">
-              <span className="w-2 h-2 rounded-full bg-[var(--accent)] animate-[blinkA_1.5s_ease_infinite]" />
-            </div>
-            <p className="font-mono text-[0.52rem] text-[var(--text-3)]">Monitoring signals</p>
-            <p className="font-mono text-[0.46rem] text-[var(--text-4)]">Run a query to start generating intelligence.</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {recentBriefs.map((b, i) => (
-              <div key={i} className="flex items-start gap-3 p-3 border" style={{ borderColor: "rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
-                <span className="w-[5px] h-[5px] rounded-full shrink-0 mt-[5px]"
-                  style={{ background: b.type === "alpha" ? "var(--accent)" : "var(--teal)", animation: "blinkA 2s ease infinite" }} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-mono text-[0.46rem] uppercase" style={{ color: b.type === "alpha" ? "var(--accent)" : "var(--teal)" }}>{b.type}</span>
-                    <span className="font-mono text-[0.44rem] text-[var(--text-4)]">·</span>
-                    <span className="font-mono text-[0.44rem]" style={{ color: b.window === "open" ? "var(--green)" : b.window === "closing" ? "var(--amber)" : "var(--text-4)" }}>{b.window}</span>
-                    <span className="font-mono text-[0.44rem] text-[var(--text-4)] ml-auto">{b.conviction}/10</span>
-                  </div>
-                  <p className="text-[0.71rem] text-[var(--text-2)] leading-[1.5] line-clamp-2">
-                    {b.signal_summary || b.narrative_summary}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </Panel>
-  );
-}
+type WM = {
+  focus: (id: WinId) => void;
+  close: (id: WinId) => void;
+  minimize: (id: WinId) => void;
+  refreshBriefs: () => void;
+};
 
-// ─── Main Canvas Dashboard ────────────────────────────────────────────────────
+// ─── Clock ────────────────────────────────────────────────────────────────────
 
-export default function CommandCenterPage() {
-  const [activePanel, setActivePanel] = useState<PanelId>(null);
-  const [briefCount, setBriefCount] = useState(0);
-  const [recentBriefs, setRecentBriefs] = useState<any[]>([]);
-
-  // Load brief count on mount
+function Clock() {
+  const [t, setT] = useState("");
   useEffect(() => {
-    (async () => {
-      try {
-        const r = await fetch("/api/briefs");
-        const { briefs = [] } = await r.json();
-        setBriefCount(briefs.length);
-        setRecentBriefs(briefs.slice(0, 6).map((b: any) => {
-          let p: any = {}; try { p = JSON.parse(b.content); } catch {}
-          return { ...b, signal_summary: p.signal_summary, narrative_summary: p.narrative_summary };
-        }));
-      } catch {}
-    })();
+    const tick = () => setT(new Date().toLocaleTimeString("en", { hour: "2-digit", minute: "2-digit", hour12: false }));
+    tick();
+    const id = setInterval(tick, 10000);
+    return () => clearInterval(id);
   }, []);
-
-  const toggle = (id: PanelId) => setActivePanel(prev => prev === id ? null : id);
-
-  const onBriefGenerated = (b: any) => {
-    setBriefCount(c => c + 1);
-    setRecentBriefs(prev => [b, ...prev].slice(0, 6));
-  };
-
-  // Sidebar items
-  const sideItems = [
-    { id: "signals",   icon: ICONS.zap,       label: "Signal Query",   badge: null },
-    { id: "feed",      icon: ICONS.feed,       label: "Live Feed",      badge: recentBriefs.length > 0 ? recentBriefs.length : null },
-    { id: "briefs",    icon: ICONS.alpha,      label: "Briefs",         badge: briefCount > 0 ? briefCount : null },
-    { id: "analytics", icon: ICONS.analytics,  label: "Analytics",      badge: null },
-    { id: "chain",     icon: ICONS.chain,      label: "Cross-chain",    badge: null, disabled: true },
-    { id: "eye",       icon: ICONS.eye,        label: "Signal Memory",  badge: null, disabled: true },
-    { id: "globe",     icon: ICONS.globe,      label: "Narratives",     badge: null, disabled: true },
-    { id: "settings",  icon: ICONS.settings,   label: "Settings",       badge: null },
-  ] as const;
-
-  // Bottom toolbar items
-  const toolItems = [
-    { id: "signals",   icon: ICONS.zap,      label: "Signal" },
-    { id: "briefs",    icon: ICONS.alpha,    label: "Briefs" },
-    { id: "feed",      icon: ICONS.feed,     label: "Feed" },
-    { id: "analytics", icon: ICONS.analytics,label: "Stats" },
-    { id: "settings",  icon: ICONS.settings, label: "Settings" },
-  ] as const;
-
   return (
-    <div
-      className="relative flex overflow-hidden select-none"
-      style={{
-        width: "100%",
-        height: "100%",
-        background: "var(--bg)",
-      }}
-    >
-      {/* ── Grid canvas background ── */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          backgroundImage: [
-            "linear-gradient(rgba(224,48,48,0.03) 1px, transparent 1px)",
-            "linear-gradient(90deg, rgba(224,48,48,0.03) 1px, transparent 1px)",
-          ].join(", "),
-          backgroundSize: "48px 48px",
-          zIndex: 0,
-        }}
-      />
-
-      {/* ── Ambient glow ── */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background: "radial-gradient(ellipse 60% 40% at 50% 50%, rgba(224,48,48,0.04) 0%, transparent 70%)",
-          zIndex: 0,
-        }}
-      />
-
-      {/* ── Icon sidebar ── */}
-      <div
-        className="relative flex flex-col items-center py-4 gap-1 shrink-0"
-        style={{
-          width: 64,
-          background: "rgba(13,13,15,0.95)",
-          borderRight: "1px solid rgba(224,48,48,0.15)",
-          zIndex: 10,
-        }}
-      >
-        {/* Logo */}
-        <div className="w-10 h-10 flex items-center justify-center mb-4 border"
-          style={{ borderColor: "rgba(224,48,48,0.3)", background: "rgba(224,48,48,0.08)" }}>
-          <span style={{ color: "var(--accent)", fontSize: "1.1rem" }}>⌬</span>
-        </div>
-
-        {sideItems.map(item => {
-          const isActive = activePanel === item.id;
-          const isDisabled = "disabled" in item && item.disabled;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              title={item.label}
-              disabled={isDisabled}
-              onClick={() => !isDisabled && toggle(item.id as PanelId)}
-              className="relative w-10 h-10 flex items-center justify-center transition-all"
-              style={{
-                color: isActive ? "var(--accent)" : isDisabled ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.35)",
-                background: isActive ? "rgba(224,48,48,0.12)" : "transparent",
-                borderLeft: isActive ? "2px solid var(--accent)" : "2px solid transparent",
-                cursor: isDisabled ? "not-allowed" : "pointer",
-              }}
-            >
-              <Icon d={item.icon} size={16} />
-              {item.badge !== null && item.badge !== undefined && (
-                <span
-                  className="absolute top-[6px] right-[6px] w-[14px] h-[14px] rounded-full flex items-center justify-center font-mono text-[0.38rem] font-bold"
-                  style={{ background: "var(--accent)", color: "#fff" }}
-                >
-                  {item.badge}
-                </span>
-              )}
-            </button>
-          );
-        })}
-
-        {/* Clock at bottom */}
-        <div className="mt-auto text-center">
-          <Clock />
-        </div>
-      </div>
-
-      {/* ── Main canvas area ── */}
-      <div className="relative flex-1 min-w-0" style={{ zIndex: 1 }}>
-
-        {/* ── Top bar ── */}
-        <div
-          className="flex items-center justify-between px-5 shrink-0"
-          style={{
-            height: 52,
-            background: "rgba(13,13,15,0.9)",
-            borderBottom: "1px solid rgba(224,48,48,0.12)",
-          }}
-        >
-          <div className="flex items-center gap-3">
-            <span className="font-mono text-[0.5rem] tracking-[0.16em] uppercase text-[var(--text-4)]">
-              command-center
-            </span>
-            <span style={{ color: "rgba(255,255,255,0.1)" }}>·</span>
-            <span className="font-mono text-[0.5rem] tracking-[0.12em] uppercase text-[var(--text-3)]">
-              Signal Intelligence
-            </span>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-[6px]">
-              <span className="w-[5px] h-[5px] rounded-full bg-[var(--green)] animate-[blinkA_2s_ease_infinite]" />
-              <span className="font-mono text-[0.48rem] uppercase tracking-[0.1em] text-[var(--green)]">
-                Brief engine live
-              </span>
-            </div>
-            <div className="w-px h-3" style={{ background: "rgba(255,255,255,0.08)" }} />
-            <div className="font-mono text-[0.5rem] text-[var(--text-4)] flex items-center gap-2">
-              <Icon d={ICONS.alpha} size={11} />
-              <span>{briefCount} briefs</span>
-            </div>
-            <div className="w-px h-3" style={{ background: "rgba(255,255,255,0.08)" }} />
-            <div className="font-mono text-[0.5rem] text-[var(--text-4)] flex items-center gap-2">
-              <span className="w-[4px] h-[4px] rounded-full" style={{ background: "rgba(224,48,48,0.6)" }} />
-              <span>On-chain scanner — building</span>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Canvas ── */}
-        <div className="relative" style={{ height: "calc(100% - 52px - 72px)" }}>
-          {/* Empty state canvas */}
-          {!activePanel && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <div className="text-center space-y-3">
-                <div className="flex items-center justify-center mb-6">
-                  <div className="w-12 h-12 border flex items-center justify-center"
-                    style={{ borderColor: "rgba(224,48,48,0.3)", background: "rgba(224,48,48,0.05)" }}>
-                    <span style={{ color: "var(--accent)", fontSize: "1.4rem" }}>⌬</span>
-                  </div>
-                </div>
-                <p className="font-cond text-[1.6rem] font-bold uppercase tracking-[0.08em] text-[var(--text-1)]">
-                  ViralClaw
-                </p>
-                <p className="font-mono text-[0.54rem] tracking-[0.2em] uppercase text-[var(--text-4)]">
-                  Synchronization intelligence layer
-                </p>
-                <div className="flex items-center justify-center gap-6 mt-8">
-                  {[
-                    { label: "Signal query", hint: "Run intelligence" },
-                    { label: "Briefs", hint: `${briefCount} generated` },
-                    { label: "On-chain scanner", hint: "Building" },
-                  ].map(item => (
-                    <div key={item.label} className="text-center">
-                      <p className="font-mono text-[0.52rem] uppercase text-[var(--text-3)]">{item.label}</p>
-                      <p className="font-mono text-[0.44rem] text-[var(--text-4)] mt-[2px]">{item.hint}</p>
-                    </div>
-                  ))}
-                </div>
-                <p className="font-mono text-[0.46rem] text-[var(--text-4)] mt-6">
-                  Select a module from the sidebar or toolbar below
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Panels */}
-          {activePanel === "signals" && (
-            <SignalPanel onClose={() => setActivePanel(null)} onBriefGenerated={onBriefGenerated} />
-          )}
-          {activePanel === "briefs" && (
-            <BriefsPanel onClose={() => setActivePanel(null)} />
-          )}
-          {activePanel === "analytics" && (
-            <AnalyticsPanel onClose={() => setActivePanel(null)} />
-          )}
-          {activePanel === "settings" && (
-            <SettingsPanel onClose={() => setActivePanel(null)} />
-          )}
-          {activePanel === "feed" && (
-            <FeedPanel onClose={() => setActivePanel(null)} recentBriefs={recentBriefs} />
-          )}
-        </div>
-
-        {/* ── Bottom toolbar ── */}
-        <div
-          className="absolute bottom-0 left-0 right-0 flex items-center justify-center gap-2 px-4"
-          style={{
-            height: 72,
-            background: "rgba(13,13,15,0.95)",
-            borderTop: "1px solid rgba(224,48,48,0.12)",
-            zIndex: 10,
-          }}
-        >
-          {toolItems.map(item => {
-            const isActive = activePanel === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => toggle(item.id as PanelId)}
-                className="flex flex-col items-center gap-1 px-5 py-2 transition-all"
-                style={{
-                  color: isActive ? "var(--accent)" : "rgba(255,255,255,0.3)",
-                  background: isActive ? "rgba(224,48,48,0.1)" : "rgba(255,255,255,0.03)",
-                  border: `1px solid ${isActive ? "rgba(224,48,48,0.35)" : "rgba(255,255,255,0.06)"}`,
-                  borderRadius: 8,
-                  minWidth: 72,
-                }}
-              >
-                <Icon d={item.icon} size={18} />
-                <span className="font-mono text-[0.42rem] tracking-[0.08em] uppercase">{item.label}</span>
-              </button>
-            );
-          })}
-        </div>
-
-      </div>
+    <div style={{ textAlign: "center", padding: "0 0 8px" }}>
+      <div style={{ fontFamily: "var(--font-mono)", fontSize: "0.6rem", fontWeight: 600, color: "rgba(255,255,255,0.4)" }}>{t}</div>
+      <div style={{ fontFamily: "var(--font-mono)", fontSize: "0.38rem", color: "rgba(255,255,255,0.18)", marginTop: 1 }}>UTC</div>
     </div>
   );
 }
 
-function Clock() {
-  const [time, setTime] = useState("");
-  useEffect(() => {
-    const tick = () => setTime(new Date().toLocaleTimeString("en", { hour: "2-digit", minute: "2-digit", hour12: false }));
-    tick();
-    const t = setInterval(tick, 10000);
-    return () => clearInterval(t);
+// ─── Main Dashboard ───────────────────────────────────────────────────────────
+
+const SIDEBAR_NAV = [
+  { id: "signal" as WinId,    icon: P.zap,      label: "Signal Query",  active: true },
+  { id: "briefs" as WinId,    icon: P.briefs,   label: "Briefs",        active: true },
+  { id: "feed" as WinId,      icon: P.feed,     label: "Signal Feed",   active: true },
+  { id: "analytics" as WinId, icon: P.chart,    label: "Analytics",     active: true },
+  { id: "chain" as WinId,     icon: P.chain,    label: "Cross-chain",   active: false },
+  { id: "settings" as WinId,  icon: P.eye,      label: "Signal Memory", active: false },
+  { id: "settings" as WinId,  icon: P.globe,    label: "Narratives",    active: false },
+] as const;
+
+const TOOLBAR = [
+  { id: "signal" as WinId,    icon: P.zap,      label: "Signal" },
+  { id: "briefs" as WinId,    icon: P.briefs,   label: "Briefs" },
+  { id: "feed" as WinId,      icon: P.feed,     label: "Feed" },
+  { id: "analytics" as WinId, icon: P.chart,    label: "Stats" },
+  { id: "settings" as WinId,  icon: P.settings, label: "Settings" },
+];
+
+const INIT_POSITIONS: Record<WinId, { x: number; y: number }> = {
+  signal:    { x: 100, y: 60 },
+  briefs:    { x: 130, y: 80 },
+  feed:      { x: 160, y: 70 },
+  analytics: { x: 150, y: 90 },
+  settings:  { x: 120, y: 75 },
+};
+
+export default function CommandCenter() {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [zTop, setZTop] = useState(100);
+  const [briefs, setBriefs] = useState<Brief[]>([]);
+  const [briefsLoading, setBriefsLoading] = useState(false);
+
+  const [windows, setWindows] = useState<Record<WinId, WindowState>>(() => {
+    const ids: WinId[] = ["signal", "briefs", "feed", "analytics", "settings"];
+    return Object.fromEntries(ids.map((id, i) => [id, {
+      id, open: false, zIndex: 100 + i,
+      x: INIT_POSITIONS[id].x, y: INIT_POSITIONS[id].y,
+      minimized: false,
+    }])) as Record<WinId, WindowState>;
+  });
+
+  const refreshBriefs = useCallback(async () => {
+    setBriefsLoading(true);
+    try {
+      const r = await fetch("/api/briefs");
+      const { briefs: data } = await r.json();
+      setBriefs(data || []);
+    } catch { } finally { setBriefsLoading(false); }
   }, []);
+
+  useEffect(() => { refreshBriefs(); }, [refreshBriefs]);
+
+  const focus = useCallback((id: WinId) => {
+    setZTop(z => {
+      const next = z + 1;
+      setWindows(prev => ({ ...prev, [id]: { ...prev[id], zIndex: next } }));
+      return next;
+    });
+  }, []);
+
+  const open = useCallback((id: WinId) => {
+    setZTop(z => {
+      const next = z + 1;
+      setWindows(prev => ({
+        ...prev,
+        [id]: { ...prev[id], open: true, minimized: false, zIndex: next },
+      }));
+      return next;
+    });
+  }, []);
+
+  const close = useCallback((id: WinId) => {
+    setWindows(prev => ({ ...prev, [id]: { ...prev[id], open: false } }));
+  }, []);
+
+  const minimize = useCallback((id: WinId) => {
+    setWindows(prev => ({ ...prev, [id]: { ...prev[id], minimized: !prev[id].minimized } }));
+  }, []);
+
+  const toggle = useCallback((id: WinId) => {
+    setWindows(prev => {
+      if (prev[id].open) {
+        return { ...prev, [id]: { ...prev[id], open: false } };
+      }
+      return prev;
+    });
+    if (!windows[id].open) open(id);
+    else close(id);
+  }, [windows, open, close]);
+
+  const wm: WM = { focus, close, minimize, refreshBriefs };
+  const pendingCount = briefs.filter(b => b.status === "pending").length;
+  const openWinCount = Object.values(windows).filter(w => w.open).length;
+
   return (
-    <div className="text-center pb-2">
-      <div className="font-mono text-[0.55rem] font-bold text-[var(--text-3)]">{time}</div>
-      <div className="font-mono text-[0.38rem] text-[var(--text-4)] mt-[1px]">UTC</div>
+    <div style={{
+      width: "100vw", height: "100vh", overflow: "hidden", display: "flex",
+      background: "#080809", position: "relative",
+    }}>
+      {/* Grid canvas */}
+      <div style={{
+        position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0,
+        backgroundImage: "linear-gradient(rgba(224,48,48,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(224,48,48,0.025) 1px, transparent 1px)",
+        backgroundSize: "44px 44px",
+      }} />
+      <div style={{
+        position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0,
+        background: "radial-gradient(ellipse 55% 40% at 50% 50%, rgba(224,48,48,0.035) 0%, transparent 70%)",
+      }} />
+
+      {/* Sidebar */}
+      <div style={{
+        width: sidebarOpen ? 200 : 64, flexShrink: 0,
+        background: "rgba(8,8,9,0.97)",
+        borderRight: "1px solid rgba(224,48,48,0.12)",
+        display: "flex", flexDirection: "column", alignItems: sidebarOpen ? "flex-start" : "center",
+        zIndex: 200, transition: "width 0.22s cubic-bezier(0.4,0,0.2,1)",
+        overflow: "hidden",
+      }}>
+        {/* Logo + toggle */}
+        <div style={{
+          width: "100%", height: 56, flexShrink: 0,
+          display: "flex", alignItems: "center",
+          padding: sidebarOpen ? "0 16px" : "0",
+          justifyContent: sidebarOpen ? "space-between" : "center",
+          borderBottom: "1px solid rgba(224,48,48,0.1)",
+        }}>
+          {sidebarOpen && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 28, height: 28, border: "1px solid rgba(224,48,48,0.35)", background: "rgba(224,48,48,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <span style={{ color: "var(--accent)", fontSize: "0.9rem" }}>⌬</span>
+              </div>
+              <span style={{ fontFamily: "var(--font-barlow-condensed)", fontSize: "0.85rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-1)", whiteSpace: "nowrap" }}>ViralClaw</span>
+            </div>
+          )}
+          {!sidebarOpen && (
+            <div style={{ width: 30, height: 30, border: "1px solid rgba(224,48,48,0.3)", background: "rgba(224,48,48,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <span style={{ color: "var(--accent)", fontSize: "0.85rem" }}>⌬</span>
+            </div>
+          )}
+          <button type="button" onClick={() => setSidebarOpen(o => !o)}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.3)", display: "flex", padding: 4, flexShrink: 0, transition: "color 0.15s" }}
+            onMouseEnter={e => (e.currentTarget.style.color = "rgba(255,255,255,0.7)")}
+            onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.3)")}>
+            <div style={{ transform: sidebarOpen ? "rotate(180deg)" : "none", transition: "transform 0.22s" }}>
+              <Ic path={P.chevronR} size={14} />
+            </div>
+          </button>
+        </div>
+
+        {/* Nav items */}
+        <nav style={{ flex: 1, padding: "12px 0", width: "100%", display: "flex", flexDirection: "column", gap: 2 }}>
+          {/* Divider label */}
+          {sidebarOpen && (
+            <div style={{ padding: "4px 16px 6px", fontFamily: "var(--font-mono)", fontSize: "0.42rem", textTransform: "uppercase", letterSpacing: "0.16em", color: "rgba(255,255,255,0.18)" }}>
+              Intelligence
+            </div>
+          )}
+          {[
+            { id: "signal" as WinId,    icon: P.zap,      label: "Signal Query",  disabled: false, badge: null },
+            { id: "briefs" as WinId,    icon: P.briefs,   label: "Briefs",        disabled: false, badge: pendingCount > 0 ? pendingCount : null },
+            { id: "feed" as WinId,      icon: P.feed,     label: "Signal Feed",   disabled: false, badge: briefs.length > 0 ? briefs.length : null },
+            { id: "analytics" as WinId, icon: P.chart,    label: "Analytics",     disabled: false, badge: null },
+          ].map(item => {
+            const isOpen = windows[item.id].open;
+            return (
+              <button key={`${item.id}-${item.label}`} type="button"
+                onClick={() => { item.disabled ? null : (isOpen ? close(item.id) : open(item.id)); }}
+                style={{
+                  width: "100%", display: "flex", alignItems: "center",
+                  gap: sidebarOpen ? 10 : 0, justifyContent: sidebarOpen ? "flex-start" : "center",
+                  padding: sidebarOpen ? "8px 16px" : "10px 0",
+                  background: isOpen ? "rgba(224,48,48,0.1)" : "transparent",
+                  borderLeft: `2px solid ${isOpen ? "var(--accent)" : "transparent"}`,
+                  border: "none", borderLeftStyle: "solid",
+                  borderLeftWidth: 2, borderLeftColor: isOpen ? "var(--accent)" : "transparent",
+                  cursor: item.disabled ? "not-allowed" : "pointer",
+                  color: isOpen ? "var(--accent)" : item.disabled ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.4)",
+                  transition: "all 0.15s", position: "relative",
+                }}
+                onMouseEnter={e => { if (!item.disabled && !isOpen) e.currentTarget.style.color = "rgba(255,255,255,0.7)"; }}
+                onMouseLeave={e => { if (!isOpen) e.currentTarget.style.color = item.disabled ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.4)"; }}>
+                <div style={{ position: "relative", flexShrink: 0 }}>
+                  <Ic path={item.icon} size={16} />
+                  {item.badge !== null && !sidebarOpen && (
+                    <span style={{ position: "absolute", top: -4, right: -4, width: 14, height: 14, borderRadius: "50%", background: "var(--accent)", color: "#fff", fontFamily: "var(--font-mono)", fontSize: "0.38rem", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      {item.badge}
+                    </span>
+                  )}
+                </div>
+                {sidebarOpen && (
+                  <>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.57rem", textTransform: "uppercase", letterSpacing: "0.08em", whiteSpace: "nowrap", flex: 1, textAlign: "left" }}>{item.label}</span>
+                    {item.badge !== null && (
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.44rem", padding: "1px 6px", borderRadius: 10, background: "var(--accent)", color: "#fff", fontWeight: 700 }}>{item.badge}</span>
+                    )}
+                  </>
+                )}
+              </button>
+            );
+          })}
+
+          {/* Coming soon section */}
+          {sidebarOpen && (
+            <div style={{ padding: "12px 16px 6px", fontFamily: "var(--font-mono)", fontSize: "0.42rem", textTransform: "uppercase", letterSpacing: "0.16em", color: "rgba(255,255,255,0.15)", marginTop: 8, borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+              Coming soon
+            </div>
+          )}
+          {!sidebarOpen && <div style={{ height: 1, background: "rgba(255,255,255,0.05)", margin: "8px 12px" }} />}
+
+          {[
+            { icon: P.chain, label: "Cross-chain" },
+            { icon: P.eye,   label: "Signal Memory" },
+            { icon: P.globe, label: "Narratives" },
+          ].map(item => (
+            <div key={item.label} title={item.label}
+              style={{
+                width: "100%", display: "flex", alignItems: "center",
+                gap: sidebarOpen ? 10 : 0, justifyContent: sidebarOpen ? "flex-start" : "center",
+                padding: sidebarOpen ? "8px 16px" : "10px 0",
+                color: "rgba(255,255,255,0.1)", cursor: "not-allowed",
+              }}>
+              <Ic path={item.icon} size={16} />
+              {sidebarOpen && (
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.57rem", textTransform: "uppercase", letterSpacing: "0.08em", flex: 1, whiteSpace: "nowrap" }}>{item.label}</span>
+              )}
+              {sidebarOpen && (
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.4rem", padding: "1px 5px", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.15)" }}>soon</span>
+              )}
+            </div>
+          ))}
+
+          {/* Settings at bottom */}
+          <div style={{ flex: 1 }} />
+          <button type="button" onClick={() => windows["settings"].open ? close("settings") : open("settings")}
+            style={{
+              width: "100%", display: "flex", alignItems: "center",
+              gap: sidebarOpen ? 10 : 0, justifyContent: sidebarOpen ? "flex-start" : "center",
+              padding: sidebarOpen ? "8px 16px" : "10px 0",
+              background: windows["settings"].open ? "rgba(224,48,48,0.1)" : "transparent",
+              borderLeft: `2px solid ${windows["settings"].open ? "var(--accent)" : "transparent"}`,
+              border: "none", borderLeftStyle: "solid", borderLeftWidth: 2, borderLeftColor: windows["settings"].open ? "var(--accent)" : "transparent",
+              color: windows["settings"].open ? "var(--accent)" : "rgba(255,255,255,0.3)",
+              cursor: "pointer", transition: "all 0.15s",
+            }}>
+            <Ic path={P.settings} size={16} />
+            {sidebarOpen && <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.57rem", textTransform: "uppercase", letterSpacing: "0.08em" }}>Settings</span>}
+          </button>
+        </nav>
+
+        {/* Clock */}
+        <div style={{ borderTop: "1px solid rgba(255,255,255,0.05)", width: "100%", paddingTop: 12, display: "flex", justifyContent: "center" }}>
+          <Clock />
+        </div>
+      </div>
+
+      {/* Canvas */}
+      <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+
+        {/* Top bar */}
+        <div style={{
+          position: "absolute", top: 0, left: 0, right: 0, height: 48, zIndex: 150,
+          background: "rgba(8,8,9,0.92)", borderBottom: "1px solid rgba(224,48,48,0.1)",
+          display: "flex", alignItems: "center", padding: "0 20px", gap: 16,
+          backdropFilter: "blur(10px)",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.5rem", textTransform: "uppercase", letterSpacing: "0.14em", color: "rgba(255,255,255,0.2)" }}>command-center</span>
+            <span style={{ color: "rgba(255,255,255,0.1)" }}>·</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.5rem", textTransform: "uppercase", letterSpacing: "0.12em", color: "rgba(255,255,255,0.35)" }}>Signal Intelligence</span>
+          </div>
+          <div style={{ flex: 1 }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+            <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#4ade80", animation: "blinkA 2s ease infinite", display: "inline-block" }} />
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.48rem", textTransform: "uppercase", letterSpacing: "0.1em", color: "#4ade80" }}>Brief engine live</span>
+          </div>
+          <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.08)" }} />
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.48rem", color: "rgba(255,255,255,0.25)" }}>{briefs.length} briefs · {openWinCount} windows</span>
+          <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.08)" }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+            <span style={{ width: 4, height: 4, borderRadius: "50%", background: "rgba(224,48,48,0.5)", display: "inline-block" }} />
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.46rem", color: "rgba(255,255,255,0.2)" }}>On-chain scanner — building</span>
+          </div>
+        </div>
+
+        {/* Window canvas area */}
+        <div style={{ position: "absolute", inset: 0, top: 48, bottom: 72 }}>
+          {/* Empty state */}
+          {openWinCount === 0 && (
+            <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+              <div style={{ textAlign: "center", opacity: 0.4 }}>
+                <div style={{ width: 40, height: 40, border: "1px solid rgba(224,48,48,0.3)", background: "rgba(224,48,48,0.05)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+                  <span style={{ color: "var(--accent)", fontSize: "1.2rem" }}>⌬</span>
+                </div>
+                <p style={{ fontFamily: "var(--font-barlow-condensed)", fontSize: "1.4rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "rgba(255,255,255,0.35)" }}>ViralClaw</p>
+                <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.5rem", textTransform: "uppercase", letterSpacing: "0.18em", color: "rgba(255,255,255,0.15)", marginTop: 6 }}>Synchronization intelligence layer</p>
+                <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.46rem", color: "rgba(255,255,255,0.1)", marginTop: 16 }}>Select a module from the sidebar or toolbar</p>
+              </div>
+            </div>
+          )}
+
+          {/* Windows */}
+          <SignalWindow win={windows.signal} wm={wm} />
+          <BriefsWindow win={windows.briefs} wm={wm} briefs={briefs} loading={briefsLoading} />
+          <FeedWindow win={windows.feed} wm={wm} briefs={briefs} />
+          <AnalyticsWindow win={windows.analytics} wm={wm} briefs={briefs} loading={briefsLoading} />
+          <SettingsWindow win={windows.settings} wm={wm} />
+        </div>
+
+        {/* Bottom toolbar */}
+        <div style={{
+          position: "absolute", bottom: 0, left: 0, right: 0, height: 72, zIndex: 150,
+          background: "rgba(8,8,9,0.95)", borderTop: "1px solid rgba(224,48,48,0.1)",
+          display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+        }}>
+          {TOOLBAR.map(item => {
+            const isOpen = windows[item.id].open;
+            return (
+              <button key={item.id} type="button"
+                onClick={() => isOpen ? close(item.id) : open(item.id)}
+                style={{
+                  display: "flex", flexDirection: "column", alignItems: "center", gap: 5,
+                  padding: "10px 20px", minWidth: 72,
+                  background: isOpen ? "rgba(224,48,48,0.12)" : "rgba(255,255,255,0.02)",
+                  border: `1px solid ${isOpen ? "rgba(224,48,48,0.3)" : "rgba(255,255,255,0.06)"}`,
+                  borderRadius: 8, cursor: "pointer",
+                  color: isOpen ? "var(--accent)" : "rgba(255,255,255,0.3)",
+                  transition: "all 0.15s",
+                }}
+                onMouseEnter={e => { if (!isOpen) { e.currentTarget.style.color = "rgba(255,255,255,0.65)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.14)"; } }}
+                onMouseLeave={e => { if (!isOpen) { e.currentTarget.style.color = "rgba(255,255,255,0.3)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; } }}>
+                <Ic path={item.icon} size={18} />
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.42rem", textTransform: "uppercase", letterSpacing: "0.08em" }}>{item.label}</span>
+                {isOpen && <span style={{ width: 4, height: 4, borderRadius: "50%", background: "var(--accent)", display: "inline-block", position: "absolute", bottom: 8 }} />}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* CSS keyframes */}
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes blinkA { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+      `}</style>
     </div>
   );
 }
