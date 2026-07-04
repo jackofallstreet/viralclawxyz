@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 // OpenRouter uses OpenAI-compatible API format
-// Set OPENROUTER_API_KEY in .env
+// Set OPENROUTER_API_KEY in your .env
 // Optionally set OPENROUTER_MODEL (defaults to claude-sonnet-4-6 via OpenRouter)
 
 const OPENROUTER_BASE = "https://openrouter.ai/api/v1";
