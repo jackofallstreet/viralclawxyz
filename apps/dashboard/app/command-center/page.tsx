@@ -351,15 +351,25 @@ function SignalWin({ win, wm }: { win: Win; wm: WMActions }) {
 }
 
 function BriefCard({ title, brief, color, borderColor, dimColor }: { title: string; brief: any; color: string; borderColor: string; dimColor: string }) {
+  const sources: string[] = brief._sources || [];
   return (
     <div style={{ border: `1px solid ${borderColor}`, background: dimColor, padding: 14 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, alignItems: "flex-start", gap: 8 }}>
         <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.52rem", textTransform: "uppercase", color }}>{title}</span>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
           <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.46rem", color: wColor(brief.window) }}>{brief.window}</span>
           <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.46rem", color: cColor(brief.conviction), fontWeight: 600 }}>{brief.conviction}/10</span>
         </div>
       </div>
+      {sources.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 10 }}>
+          {sources.map((s: string) => (
+            <span key={s} style={{ fontFamily: "var(--font-mono)", fontSize: "0.42rem", textTransform: "uppercase", letterSpacing: "0.06em", padding: "2px 6px", border: `1px solid ${V.greenB}`, background: V.greenDim, color: V.green }}>
+              ⚡ {s} live
+            </span>
+          ))}
+        </div>
+      )}
       <p style={{ fontSize: "0.76rem", color: V.body, lineHeight: 1.7, marginBottom: 10 }}>
         {brief.signal_summary || brief.narrative_summary}
       </p>
