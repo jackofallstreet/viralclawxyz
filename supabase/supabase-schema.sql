@@ -1,5 +1,4 @@
--- Run this in Supabase Dashboard → SQL Editor
-
+ 
 create table if not exists signals (
   id uuid default gen_random_uuid() primary key,
   created_at timestamptz default now(),
@@ -7,7 +6,7 @@ create table if not exists signals (
   type text,
   summary text,
   conviction int,
-  window text,
+  signal_window text,
   chains text[],
   social_lag_hours int,
   status text default 'new'
@@ -20,7 +19,7 @@ create table if not exists briefs (
   type text not null,
   status text default 'pending',
   conviction int,
-  window text,
+  signal_window text,
   content text,
   signal_summary text,
   chains text[]
@@ -36,7 +35,7 @@ create table if not exists settings (
   creator_voice text
 );
 
--- Disable RLS so anon key can read/write (enable + add policies when you add auth)
+-- Disable RLS so anon key can read/write
 alter table signals disable row level security;
 alter table briefs disable row level security;
 alter table settings disable row level security;
