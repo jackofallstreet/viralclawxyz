@@ -1,62 +1,63 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// OpenRouter uses OpenAI-compatible API format
-// Set OPENROUTER_API_KEY in your .env
-// Optionally set OPENROUTER_MODEL (defaults to claude-sonnet-4-6 via OpenRouter)
-
 const OPENROUTER_BASE = "https://openrouter.ai/api/v1";
 const MODEL = process.env.OPENROUTER_MODEL || "anthropic/claude-sonnet-4-5";
 
 export async function POST(req: NextRequest) {
   try {
-    const { query, settings, mode } = await req.json();
+    const { query, mode, settings } = await req.json();
 
-    const systemPrompt =
-      mode === "alpha"
-        ? `You are ViralClaw's Alpha Engine — a synchronization intelligence system that detects on-chain signals and produces structured participation briefs for crypto traders.
+    const systemPrompt = mode === "alpha"
+      ? `You are ViralClaw's Alpha Engine — a crypto intelligence system that produces structured participation briefs.
 
-Given a signal query or description, produce a structured JSON alpha brief with EXACTLY this shape:
+Use your knowledge of current crypto markets, recent on-chain trends, DeFi narratives, and market conditions to produce a realistic and specific alpha brief.
+
+Given the user's query, produce a JSON object with EXACTLY this shape:
 {
-  "signal_summary": "plain-language description of what's moving, which wallets, which chains",
-  "conviction": <number 1-10>,
-  "conviction_reasoning": "which dimensions scored highest and why",
+  "signal_summary": "specific description of what's happening — mention actual protocols, tokens, or patterns relevant to the query",
+  "conviction": <number 1-10 based on how strong the signal appears>,
+  "conviction_reasoning": "why this conviction score — specific factors",
   "chains": ["ETH", "BASE"],
-  "cross_chain_map": "description of cross-chain correlation evidence and rotation vector",
+  "cross_chain_map": "specific cross-chain dynamics relevant to this signal",
   "window": "open" | "closing" | "closed",
-  "window_hours": <estimated hours remaining as integer>,
-  "risk_context": "what would invalidate this signal",
-  "social_lag_hours": <how many hours ahead of social narrative this is as integer>,
-  "pattern_match": "historical pattern this resembles, or null"
+  "window_hours": <estimated hours the window remains open as integer>,
+  "risk_context": "specific risks that could invalidate this thesis",
+  "social_lag_hours": <estimated hours ahead of mainstream social narrative as integer>,
+  "pattern_match": "what historical pattern this resembles"
 }
 
+Be specific. Use real protocol names, real narratives, real market dynamics. Do not be generic.
 Focus areas: ${settings?.focus_area || "DeFi, on-chain alpha"}
-Minimum conviction to flag: ${settings?.min_conviction || 7}
-Ecosystems of interest: ${settings?.ecosystems?.join(", ") || "ETH, SOL, BASE, ARB"}
+Ecosystems: ${settings?.ecosystems?.join(", ") || "ETH, SOL, BASE, ARB"}
+Min conviction to flag: ${settings?.min_conviction || 7}
 
-Respond ONLY with the raw JSON object. No markdown fences, no preamble, no explanation.`
-        : `You are ViralClaw's Content Engine — a synchronization intelligence system that detects viral narrative windows and produces structured content briefs for Web3 creators.
+Respond ONLY with the raw JSON. No markdown, no preamble.`
+      : `You are ViralClaw's Content Engine — a crypto intelligence system that produces content briefs for Web3 creators.
 
-Given a signal query or description, produce a structured JSON content brief with EXACTLY this shape:
+Use your knowledge of current crypto narratives, trending topics, and content performance patterns to produce a realistic and specific content brief.
+
+Given the user's query, produce a JSON object with EXACTLY this shape:
 {
-  "narrative_summary": "the story behind the signal in plain language your audience can understand",
+  "narrative_summary": "the story behind this signal — specific, not generic, mention real protocols/events",
   "conviction": <number 1-10>,
-  "social_lag_hours": <how many hours ahead of social narrative peak this is as integer>,
+  "social_lag_hours": <hours ahead of social narrative peak as integer>,
   "window": "open" | "closing" | "closed",
   "publish_urgency": "publish now" | "publish soon" | "closing",
   "angles": [
-    "Angle 1: specific hook and framing",
-    "Angle 2: different hook and framing",
+    "Angle 1: specific hook with actual context from the query",
+    "Angle 2: different specific angle",
     "Angle 3: third distinct angle"
   ],
-  "evidence_links_description": "description of on-chain sources that would ground this content",
-  "audience_framing": "how to explain the on-chain origin to your audience",
+  "evidence_links_description": "specific on-chain sources to reference — block explorers, Dune dashboards, specific protocols",
+  "audience_framing": "how to frame this for your specific audience",
   "chains": ["ETH", "BASE"]
 }
 
-Creator voice: ${settings?.creator_voice || "analytical, first-principles, crypto-native"}
+Be specific. Reference real narratives, real protocols. Three distinct angles, not three versions of the same thing.
+Creator voice: ${settings?.creator_voice || "analytical, crypto-native, first-principles"}
 Ecosystems: ${settings?.ecosystems?.join(", ") || "ETH, SOL, BASE, ARB"}
 
-Respond ONLY with the raw JSON object. No markdown fences, no preamble, no explanation.`;
+Respond ONLY with the raw JSON. No markdown, no preamble.`;
 
     const response = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
       method: "POST",
@@ -68,12 +69,11 @@ Respond ONLY with the raw JSON object. No markdown fences, no preamble, no expla
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 1024,
+        max_tokens: 1200,
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user",   content: query },
+          { role: "user", content: query },
         ],
-        response_format: { type: "json_object" }, // forces JSON on supported models
       }),
     });
 
@@ -89,10 +89,14 @@ Respond ONLY with the raw JSON object. No markdown fences, no preamble, no expla
     try {
       parsed = JSON.parse(text.replace(/```json|```/g, "").trim());
     } catch {
-      return NextResponse.json(
-        { error: "Failed to parse brief — model returned non-JSON", raw: text },
-        { status: 422 }
-      );
+      // Try extracting JSON from the response
+      const match = text.match(/\{[\s\S]*\}/);
+      if (match) {
+        try { parsed = JSON.parse(match[0]); }
+        catch { return NextResponse.json({ error: "Model returned non-JSON", raw: text }, { status: 422 }); }
+      } else {
+        return NextResponse.json({ error: "Model returned non-JSON", raw: text }, { status: 422 });
+      }
     }
 
     return NextResponse.json({ brief: parsed, mode });

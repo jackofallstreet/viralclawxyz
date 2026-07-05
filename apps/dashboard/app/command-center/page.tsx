@@ -250,15 +250,19 @@ function SignalWin({ win, wm }: { win: Win; wm: WMActions }) {
     <Window id="signal" title="Signal Query" win={win} onFocus={wm.focus} onClose={wm.close} onMinimize={wm.minimize} width={740}>
       <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
 
-        {/* Context banner — honest framing */}
-        <div style={{ padding: "10px 12px", background: V.criDim, border: `1px solid ${V.criBord}`, display: "flex", gap: 10, alignItems: "flex-start" }}>
-          <Ico d={I.warn} size={14} />
-          <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.52rem", color: V.body, lineHeight: 1.7 }}>
-            <strong style={{ color: V.white }}>AI synthesis mode.</strong>{" "}
-            On-chain scanner is not yet live. Briefs are synthesized by Claude based on your query — not real-time chain data.
-            They are useful for <strong style={{ color: V.white }}>narrative framing, content angle research, and hypothesis building.</strong>{" "}
-            Live signal data ships in Phase 2.
-          </p>
+        {/* Status bar */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 12px", background: V.bg2, border: `1px solid ${V.border}` }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ width: 5, height: 5, borderRadius: "50%", background: V.green, animation: "blinkA 1.5s ease infinite", display: "inline-block" }} />
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.48rem", textTransform: "uppercase", letterSpacing: "0.1em", color: V.green }}>Intelligence engine live</span>
+          </div>
+          <div style={{ width: 1, height: 12, background: V.border }} />
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.48rem", color: V.dim }}>Model: {process.env.NEXT_PUBLIC_MODEL || "claude-sonnet-4-5"} via OpenRouter</span>
+          <div style={{ flex: 1 }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ width: 4, height: 4, borderRadius: "50%", background: V.amber, display: "inline-block" }} />
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.46rem", color: V.dim }}>On-chain RPC — Phase 2</span>
+          </div>
         </div>
 
         {/* Mode */}

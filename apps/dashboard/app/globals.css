@@ -3,7 +3,8 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
+  :root,
+  [data-theme="dark"] {
     --black:      #080809;
     --carbon:     #0e0e10;
     --surface:    #141416;
@@ -40,6 +41,43 @@
     --purple-border:rgba(167,139,250,0.22);
   }
 
+  [data-theme="light"] {
+    --black:      #f5f5f3;
+    --carbon:     #ffffff;
+    --surface:    #f0f0ee;
+    --soft:       #e8e8e5;
+    --overlay:    #dededd;
+    --border:     rgba(0,0,0,0.08);
+    --border-md:  rgba(0,0,0,0.14);
+    --border-hi:  rgba(0,0,0,0.22);
+    --white:      #111110;
+    --body:       #2c2c2a;
+    --muted:      #6b6b65;
+    --low:        #9898a0;
+    --dim:        #b8b8c0;
+
+    --crimson:        #c41e1e;
+    --crimson-hover:  #a01414;
+    --crimson-dim:    rgba(196,30,30,0.07);
+    --crimson-border: rgba(196,30,30,0.22);
+
+    --cyan-light:  #0891b2;
+    --cyan-dim:    rgba(8,145,178,0.08);
+    --cyan-border: rgba(8,145,178,0.22);
+
+    --green:        #16a34a;
+    --green-dim:    rgba(22,163,74,0.08);
+    --green-border: rgba(22,163,74,0.22);
+
+    --amber:        #b45309;
+    --amber-dim:    rgba(180,83,9,0.08);
+    --amber-border: rgba(180,83,9,0.22);
+
+    --purple:       #7c3aed;
+    --purple-dim:   rgba(124,58,237,0.08);
+    --purple-border:rgba(124,58,237,0.22);
+  }
+
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html { scroll-behavior: smooth; }
 
@@ -52,9 +90,9 @@
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    transition: background 0.2s ease, color 0.2s ease;
   }
 
-  /* Scanline texture overlay */
   body::before {
     content: '';
     position: fixed;
@@ -63,24 +101,26 @@
       0deg,
       transparent,
       transparent 2px,
-      rgba(0,0,0,0.03) 2px,
-      rgba(0,0,0,0.03) 4px
+      rgba(0,0,0,0.025) 2px,
+      rgba(0,0,0,0.025) 4px
     );
     pointer-events: none;
     z-index: 9999;
   }
 
-  ::selection {
-    background: rgba(224,40,40,0.25);
-    color: var(--white);
+  [data-theme="light"] body::before {
+    background-image: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.012) 2px,
+      rgba(0,0,0,0.012) 4px
+    );
   }
 
-  :focus-visible {
-    outline: 1px solid var(--crimson);
-    outline-offset: 2px;
-  }
+  ::selection { background: rgba(224,40,40,0.2); color: var(--white); }
+  :focus-visible { outline: 1px solid var(--crimson); outline-offset: 2px; }
 
-  /* Scrollbar */
   ::-webkit-scrollbar { width: 4px; height: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--dim); }
@@ -98,18 +138,12 @@
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.3; }
 }
-
 @keyframes pulse-ring {
   0%   { transform: scale(1); opacity: 0.6; }
   100% { transform: scale(2.2); opacity: 0; }
 }
-
 @keyframes slide-in {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-
-@keyframes scan {
-  0%   { transform: translateY(-100%); }
-  100% { transform: translateY(100vh); }
-}
+@keyframes spin { to { transform: rotate(360deg); } }
