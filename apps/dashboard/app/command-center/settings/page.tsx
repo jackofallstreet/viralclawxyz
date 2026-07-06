@@ -3,23 +3,17 @@
 import { useState, useEffect } from "react";
 
 type Settings = {
-  output_type: "alpha" | "content" | "both";
+  output_type: "both" | "alpha" | "content";
   focus_area: string;
   min_conviction: number;
   ecosystems: string[];
   creator_voice: string;
 };
 
-const DEFAULT: Settings = {
-  output_type: "both",
-  focus_area: "",
-  min_conviction: 7,
-  ecosystems: ["ETH", "SOL", "BASE", "ARB"],
-  creator_voice: "",
-};
+const DEFAULT: Settings = { output_type: "both", focus_area: "", min_conviction: 7, ecosystems: ["ETH","SOL","BASE","ARB"], creator_voice: "" };
 
 export default function SettingsPage() {
-  const [settings, setSettings] = useState<Settings>(DEFAULT);
+  const [s, setS] = useState<Settings>(DEFAULT);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -27,135 +21,64 @@ export default function SettingsPage() {
   const [newEco, setNewEco] = useState("");
 
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch("/api/settings");
-        const { settings: data } = await res.json();
-        if (data) setSettings(prev => ({ ...prev, ...data }));
-      } catch { } finally { setLoading(false); }
-    })();
+    fetch("/api/settings").then(r => r.json()).then(({ settings }) => { if (settings) setS(p => ({ ...p, ...settings })); }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   async function save() {
-    setSaving(true);
-    setSaved(false);
-    setError(null);
+    setSaving(true); setSaved(false); setError(null);
     try {
-      const res = await fetch("/api/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(settings),
+      const r = await fetch("/api/settings", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(s),
       });
-      const { error: err } = await res.json();
-      if (err) throw new Error(err);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setSaving(false);
-    }
+      const j = await r.json();
+      if (!r.ok || j.error) throw new Error(j.error || "Save failed");
+      setSaved(true); setTimeout(() => setSaved(false), 3000);
+    } catch (e: any) { setError(e.message); } finally { setSaving(false); }
   }
 
-  const set = (key: keyof Settings, value: any) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
-    setSaved(false);
-  };
+  const set = (k: keyof Settings, v: any) => { setS(p => ({ ...p, [k]: v })); setSaved(false); };
+  const addEco = () => { const v = newEco.trim().toUpperCase(); if (v && !s.ecosystems.includes(v)) set("ecosystems", [...s.ecosystems, v]); setNewEco(""); };
 
-  const addEco = () => {
-    const val = newEco.trim().toUpperCase();
-    if (val && !settings.ecosystems.includes(val)) {
-      set("ecosystems", [...settings.ecosystems, val]);
-    }
-    setNewEco("");
-  };
-
-  const removeEco = (eco: string) => {
-    set("ecosystems", settings.ecosystems.filter(e => e !== eco));
-  };
-
-  if (loading) {
-    return (
-      <div className="max-w-[860px] mx-auto py-20 text-center">
-        <div className="inline-block w-4 h-4 border border-[var(--accent)] border-t-transparent rounded-full animate-spin mb-3" />
-        <p className="font-mono text-[0.52rem] text-[var(--text-4)]">Loading settings...</p>
-      </div>
-    );
-  }
+  const inp = "w-full bg-[var(--black)] border border-[var(--border)] px-3 py-2 font-mono text-[0.68rem] text-[var(--white)] placeholder:text-[var(--dim)] outline-none focus:border-[var(--crimson-border)] transition-colors";
 
   return (
     <div className="max-w-[860px] mx-auto space-y-6">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="font-cond text-[clamp(1.5rem,4vw,2.2rem)] font-bold uppercase leading-none text-[var(--text-1)] tracking-[0.02em]">
-            Settings
-          </h1>
-          <p className="text-[0.78rem] text-[var(--text-3)] mt-2 font-light">
-            Signal preferences, ecosystem focus, and creator voice. Loaded by the intelligence layer on every brief generation.
-          </p>
+          <h1 className="font-cond text-[clamp(1.5rem,4vw,2.2rem)] font-bold uppercase leading-none text-[var(--white)] tracking-[0.02em]">Settings</h1>
+          <p className="text-[0.78rem] text-[var(--low)] mt-2 font-light">Signal preferences injected into every brief generation call.</p>
         </div>
-        <div className="flex items-center gap-2">
-          {saved && (
-            <span className="font-mono text-[0.52rem] text-[var(--green)] flex items-center gap-1">
-              <span>✓</span> Saved
-            </span>
-          )}
-          <button
-            type="button"
-            onClick={save}
-            disabled={saving}
-            className="font-mono text-[0.57rem] tracking-[0.12em] uppercase px-4 py-2 transition-all"
-            style={{
-              background: saving ? "var(--bg-4)" : "var(--accent)",
-              color: saving ? "var(--text-4)" : "#fff",
-              cursor: saving ? "not-allowed" : "pointer",
-            }}
-          >
+        <div className="flex items-center gap-3">
+          {saved && <span className="font-mono text-[0.52rem] text-[var(--green)] flex items-center gap-1">✓ Saved</span>}
+          {error && <span className="font-mono text-[0.52rem] text-[var(--crimson)]">{error}</span>}
+          <button type="button" onClick={save} disabled={saving}
+            className={`font-mono text-[0.57rem] tracking-[0.12em] uppercase px-4 py-2 transition-all ${saving ? "bg-[var(--surface)] text-[var(--dim)] cursor-not-allowed" : "bg-[var(--crimson)] text-white hover:bg-[var(--crimson-hover)] cursor-pointer"}`}>
             {saving ? "Saving..." : "Save settings"}
           </button>
         </div>
       </div>
 
-      {error && (
-        <div className="border border-[var(--accent-border)] bg-[var(--accent-dim)] p-4">
-          <p className="font-mono text-[0.55rem] text-[var(--accent)]">
-            Save failed: {error}
-            {error.includes("does not exist") && " — run the Supabase schema below first."}
-          </p>
-        </div>
-      )}
-
       {/* Signal preferences */}
       <section className="border border-[var(--border)] overflow-hidden">
-        <div className="bg-[var(--bg-3)] px-4 py-2 border-b border-[var(--border)] flex items-center justify-between">
-          <span className="font-mono text-[0.52rem] tracking-[0.12em] uppercase text-[var(--text-3)]">
-            Signal preferences
-          </span>
-          <span className="font-mono text-[0.44rem] text-[var(--text-4)]">
-            Injected into every brief generation prompt
-          </span>
+        <div className="bg-[var(--surface)] px-4 py-2 border-b border-[var(--border)]">
+          <span className="font-mono text-[0.52rem] tracking-[0.12em] uppercase text-[var(--low)]">Signal preferences</span>
         </div>
-        <div className="bg-[var(--bg-2)] p-5 space-y-5">
+        <div className="bg-[var(--carbon)] p-5 space-y-5">
 
           {/* Output type */}
           <div>
-            <label className="font-mono text-[0.52rem] tracking-[0.12em] uppercase text-[var(--text-3)] block mb-3">
-              Output type
-            </label>
-            <div className="flex gap-2">
-              {(["alpha", "content", "both"] as const).map(t => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => set("output_type", t)}
-                  className="font-mono text-[0.55rem] tracking-[0.08em] uppercase px-4 py-2 border transition-all"
-                  style={{
-                    background: settings.output_type === t ? "var(--accent)" : "var(--bg)",
-                    color: settings.output_type === t ? "#fff" : "var(--text-3)",
-                    borderColor: settings.output_type === t ? "var(--accent)" : "var(--border)",
-                  }}
-                >
-                  {t === "both" ? "Alpha + Content" : t === "alpha" ? "Alpha only" : "Content only"}
+            <label className="font-mono text-[0.52rem] tracking-[0.12em] uppercase text-[var(--low)] block mb-1">Output type</label>
+            <p className="font-mono text-[0.44rem] text-[var(--dim)] mb-3">What kind of briefs to generate</p>
+            <div className="flex gap-2 flex-wrap">
+              {(["both", "alpha", "content"] as const).map(m => (
+                <button key={m} type="button" onClick={() => set("output_type", m)}
+                  className={`font-mono text-[0.55rem] tracking-[0.08em] uppercase px-4 py-2 border transition-all ${
+                    s.output_type === m
+                      ? "text-[var(--crimson)] border-[var(--crimson-border)] bg-[var(--crimson-dim)]"
+                      : "text-[var(--muted)] border-[var(--border)] hover:border-[var(--border-md)]"
+                  }`}>
+                  {m === "both" ? "Alpha + Content" : m === "alpha" ? "Alpha only" : "Content only"}
                 </button>
               ))}
             </div>
@@ -163,82 +86,45 @@ export default function SettingsPage() {
 
           {/* Focus area */}
           <div>
-            <label className="font-mono text-[0.52rem] tracking-[0.12em] uppercase text-[var(--text-3)] block mb-2">
-              Focus area
-            </label>
-            <p className="font-mono text-[0.44rem] text-[var(--text-4)] mb-2">Shapes which signals score higher</p>
-            <input
-              type="text"
-              value={settings.focus_area}
-              onChange={e => set("focus_area", e.target.value)}
-              placeholder="e.g. DeFi, restaking, memecoins, L2s"
-              className="w-full bg-[var(--bg)] border border-[var(--border-2)] px-3 py-2 font-mono text-[0.68rem] text-[var(--text-1)] placeholder:text-[var(--text-4)] outline-none transition-colors"
-              onFocus={e => (e.target.style.borderColor = "var(--accent)")}
-              onBlur={e => (e.target.style.borderColor = "var(--border-2)")}
-            />
+            <label className="font-mono text-[0.52rem] tracking-[0.12em] uppercase text-[var(--low)] block mb-1">Focus area</label>
+            <p className="font-mono text-[0.44rem] text-[var(--dim)] mb-2">Shapes which signals score higher</p>
+            <input type="text" value={s.focus_area} onChange={e => set("focus_area", e.target.value)} placeholder="e.g. DeFi, restaking, memecoins, L2s" className={inp} />
           </div>
 
           {/* Min conviction */}
           <div>
-            <label className="font-mono text-[0.52rem] tracking-[0.12em] uppercase text-[var(--text-3)] block mb-2">
-              Minimum conviction threshold: <span style={{ color: "var(--accent)" }}>{settings.min_conviction}/10</span>
+            <label className="font-mono text-[0.52rem] tracking-[0.12em] uppercase text-[var(--low)] block mb-1">
+              Minimum conviction: <span className="text-[var(--crimson)]">{s.min_conviction}/10</span>
             </label>
-            <p className="font-mono text-[0.44rem] text-[var(--text-4)] mb-3">Signals below this score are filtered before brief generation</p>
-            <input
-              type="range"
-              min={1}
-              max={10}
-              step={1}
-              value={settings.min_conviction}
+            <p className="font-mono text-[0.44rem] text-[var(--dim)] mb-3">Signals below this are filtered</p>
+            <input type="range" min={1} max={10} step={1} value={s.min_conviction}
               onChange={e => set("min_conviction", Number(e.target.value))}
-              className="w-full accent-[var(--accent)]"
-              style={{ accentColor: "var(--accent)" }}
-            />
-            <div className="flex justify-between font-mono text-[0.42rem] text-[var(--text-4)] mt-1">
-              <span>1 — any signal</span>
-              <span>10 — highest only</span>
+              className="w-full" style={{ accentColor: "var(--crimson)" }} />
+            <div className="flex justify-between mt-1">
+              <span className="font-mono text-[0.42rem] text-[var(--dim)]">1 — any signal</span>
+              <span className="font-mono text-[0.42rem] text-[var(--dim)]">10 — highest only</span>
             </div>
           </div>
 
           {/* Ecosystems */}
           <div>
-            <label className="font-mono text-[0.52rem] tracking-[0.12em] uppercase text-[var(--text-3)] block mb-2">
-              Ecosystem watchlist
-            </label>
-            <p className="font-mono text-[0.44rem] text-[var(--text-4)] mb-3">Scanner prioritises these chains for cross-chain correlation</p>
+            <label className="font-mono text-[0.52rem] tracking-[0.12em] uppercase text-[var(--low)] block mb-1">Ecosystem watchlist</label>
+            <p className="font-mono text-[0.44rem] text-[var(--dim)] mb-3">Scanner prioritises these chains</p>
             <div className="flex flex-wrap gap-2 mb-3">
-              {settings.ecosystems.map(eco => (
-                <div
-                  key={eco}
-                  className="flex items-center gap-1 font-mono text-[0.52rem] tracking-[0.06em] px-2 py-[4px] border border-[var(--teal-border)] bg-[var(--teal-dim)] text-[var(--teal)]"
-                >
-                  {eco}
-                  <button
-                    type="button"
-                    onClick={() => removeEco(eco)}
-                    className="text-[var(--text-4)] hover:text-[var(--accent)] ml-1 transition-colors text-[0.7rem] leading-none"
-                  >
-                    ×
-                  </button>
+              {s.ecosystems.map(e => (
+                <div key={e} className="flex items-center gap-1 font-mono text-[0.52rem] tracking-[0.06em] px-2 py-[4px] border border-[var(--cyan-border)] bg-[var(--cyan-dim)] text-[var(--cyan-light)]">
+                  {e}
+                  <button type="button" onClick={() => set("ecosystems", s.ecosystems.filter(x => x !== e))}
+                    className="text-[var(--dim)] hover:text-[var(--crimson)] ml-1 transition-colors">×</button>
                 </div>
               ))}
             </div>
             <div className="flex gap-2">
-              <input
-                type="text"
-                value={newEco}
-                onChange={e => setNewEco(e.target.value)}
+              <input type="text" value={newEco} onChange={e => setNewEco(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addEco(); } }}
-                placeholder="Add chain — press Enter (e.g. SUI, APT)"
-                className="flex-1 bg-[var(--bg)] border border-[var(--border-2)] px-3 py-2 font-mono text-[0.65rem] text-[var(--text-1)] placeholder:text-[var(--text-4)] outline-none transition-colors"
-                onFocus={e => (e.target.style.borderColor = "var(--accent)")}
-                onBlur={e => (e.target.style.borderColor = "var(--border-2)")}
-              />
-              <button
-                type="button"
-                onClick={addEco}
-                className="font-mono text-[0.55rem] tracking-[0.08em] uppercase px-3 py-2 border border-[var(--border-2)] text-[var(--text-3)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-all"
-              >
+                placeholder="Add chain — press Enter (e.g. SUI, APT)" className={`${inp} flex-1`} />
+              <button type="button" onClick={addEco}
+                className="font-mono text-[0.52rem] tracking-[0.08em] uppercase px-3 py-2 border border-[var(--border)] text-[var(--muted)] hover:border-[var(--crimson-border)] hover:text-[var(--crimson)] transition-all">
                 Add
               </button>
             </div>
@@ -246,76 +132,52 @@ export default function SettingsPage() {
 
           {/* Creator voice */}
           <div>
-            <label className="font-mono text-[0.52rem] tracking-[0.12em] uppercase text-[var(--text-3)] block mb-2">
-              Creator voice
-            </label>
-            <p className="font-mono text-[0.44rem] text-[var(--text-4)] mb-2">Shapes angle variants and framing in content briefs</p>
-            <textarea
-              value={settings.creator_voice}
-              onChange={e => set("creator_voice", e.target.value)}
-              placeholder="Describe your tone, audience, and what to emphasise. e.g. &quot;Analytical, first-principles, for crypto-native audience aged 25-35 who trade actively&quot;"
-              rows={4}
-              className="w-full bg-[var(--bg)] border border-[var(--border-2)] p-3 font-mono text-[0.68rem] text-[var(--text-1)] placeholder:text-[var(--text-4)] resize-none outline-none transition-colors leading-[1.7]"
-              onFocus={e => (e.target.style.borderColor = "var(--accent)")}
-              onBlur={e => (e.target.style.borderColor = "var(--border-2)")}
-            />
+            <label className="font-mono text-[0.52rem] tracking-[0.12em] uppercase text-[var(--low)] block mb-1">Creator voice</label>
+            <p className="font-mono text-[0.44rem] text-[var(--dim)] mb-2">Shapes angle variants and framing in content briefs</p>
+            <textarea value={s.creator_voice} onChange={e => set("creator_voice", e.target.value)}
+              placeholder="Describe your tone, audience, what to emphasise..." rows={3}
+              className={`${inp} resize-none leading-[1.7]`} />
           </div>
-
         </div>
       </section>
 
-      {/* Supabase schema helper */}
+      {/* Supabase SQL */}
       <section className="border border-[var(--border)] overflow-hidden">
-        <div className="bg-[var(--bg-3)] px-4 py-2 border-b border-[var(--border)]">
-          <span className="font-mono text-[0.52rem] tracking-[0.12em] uppercase text-[var(--text-3)]">
-            Supabase setup — run once
-          </span>
+        <div className="bg-[var(--surface)] px-4 py-2 border-b border-[var(--border)]">
+          <span className="font-mono text-[0.52rem] tracking-[0.12em] uppercase text-[var(--low)]">Supabase setup — run once in SQL Editor</span>
         </div>
-        <div className="bg-[var(--bg-2)] p-5">
-          <p className="font-mono text-[0.52rem] text-[var(--text-4)] mb-3 leading-[1.6]">
+        <div className="bg-[var(--carbon)] p-4">
+          <p className="font-mono text-[0.48rem] text-[var(--dim)] leading-[1.6] mb-3">
             Run this SQL in your Supabase dashboard → SQL Editor to create the required tables:
           </p>
-          <pre className="bg-[var(--bg)] border border-[var(--border)] p-4 text-[0.62rem] text-[var(--text-2)] overflow-x-auto leading-[1.8] font-mono select-all">
-{`-- Signals table
-create table if not exists signals (
+          <pre className="bg-[var(--black)] border border-[var(--border)] p-4 text-[0.62rem] text-[var(--muted)] overflow-x-auto leading-[1.8] font-mono select-all rounded-none">
+{`create table if not exists signals (
   id uuid default gen_random_uuid() primary key,
   created_at timestamptz default now(),
-  chain text,
-  type text,
-  summary text,
-  conviction int,
-  window text,
-  chains text[],
-  social_lag_hours int,
+  chain text, type text, summary text,
+  conviction int, signal_window text,
+  chains text[], social_lag_hours int,
   status text default 'new'
 );
 
--- Briefs table
 create table if not exists briefs (
   id uuid default gen_random_uuid() primary key,
   created_at timestamptz default now(),
-  signal_id uuid references signals(id) on delete set null,
-  type text not null,
+  signal_id uuid, type text not null,
   status text default 'pending',
-  conviction int,
-  window text,
-  content text,
-  signal_summary text,
-  chains text[]
+  conviction int, signal_window text,
+  content text, signal_summary text, chains text[]
 );
 
--- Settings table
 create table if not exists settings (
   id uuid default gen_random_uuid() primary key,
   created_at timestamptz default now(),
   output_type text default 'both',
-  focus_area text,
-  min_conviction int default 7,
+  focus_area text, min_conviction int default 7,
   ecosystems text[] default array['ETH','SOL','BASE','ARB'],
   creator_voice text
 );
 
--- Disable RLS for now (enable + add policies when you add auth)
 alter table signals disable row level security;
 alter table briefs disable row level security;
 alter table settings disable row level security;`}
@@ -323,38 +185,31 @@ alter table settings disable row level security;`}
         </div>
       </section>
 
-      {/* Env vars reminder */}
+      {/* Env vars */}
       <section className="border border-[var(--border)] overflow-hidden">
-        <div className="bg-[var(--bg-3)] px-4 py-2 border-b border-[var(--border)]">
-          <span className="font-mono text-[0.52rem] tracking-[0.12em] uppercase text-[var(--text-3)]">
-            Required environment variables
-          </span>
+        <div className="bg-[var(--surface)] px-4 py-2 border-b border-[var(--border)]">
+          <span className="font-mono text-[0.52rem] tracking-[0.12em] uppercase text-[var(--low)]">Required environment variables</span>
         </div>
-        <div className="bg-[var(--bg-2)] divide-y divide-[var(--border)]">
+        <div className="bg-[var(--carbon)] divide-y divide-[var(--border)]">
           {[
-            { key: "ANTHROPIC_API_KEY",           note: "Brief generation — Claude Sonnet 4.6",   required: true },
-            { key: "NEXT_PUBLIC_SUPABASE_URL",     note: "Database — signals, briefs, settings",   required: true },
-            { key: "NEXT_PUBLIC_SUPABASE_ANON_KEY",note: "Database — public client key",           required: true },
-            { key: "SUPABASE_SERVICE_ROLE_KEY",    note: "Database — server-side writes (optional, falls back to anon key)", required: false },
+            { key: "OPENROUTER_API_KEY",            req: true,  note: "Brief generation via OpenRouter" },
+            { key: "NEXT_PUBLIC_SUPABASE_URL",       req: true,  note: "Database connection" },
+            { key: "NEXT_PUBLIC_SUPABASE_ANON_KEY",  req: true,  note: "Database auth" },
+            { key: "BIRDEYE_KEY",                    req: false, note: "Solana live token data (trending, gainers)" },
+            { key: "COINGECKO_KEY",                  req: false, note: "Global trending + category market data" },
+            { key: "BRIAN_KEY",                      req: false, note: "On-chain protocol context (DeFi queries)" },
+            { key: "OPENROUTER_MODEL",               req: false, note: "Override model — default: anthropic/claude-sonnet-4-5" },
           ].map(v => (
             <div key={v.key} className="px-4 py-3 flex items-center gap-4">
-              <span
-                className="font-mono text-[0.44rem] tracking-[0.06em] uppercase px-2 py-[2px] border shrink-0"
-                style={{
-                  color: v.required ? "var(--accent)" : "var(--text-4)",
-                  borderColor: v.required ? "var(--accent-border)" : "var(--border)",
-                  background: v.required ? "var(--accent-dim)" : "transparent",
-                }}
-              >
-                {v.required ? "required" : "optional"}
+              <span className={`font-mono text-[0.44rem] tracking-[0.06em] uppercase px-2 py-[2px] border shrink-0 ${v.req ? "text-[var(--crimson)] border-[var(--crimson-border)] bg-[var(--crimson-dim)]" : "text-[var(--dim)] border-[var(--border)]"}`}>
+                {v.req ? "required" : "optional"}
               </span>
-              <code className="font-mono text-[0.6rem] text-[var(--teal)]">{v.key}</code>
-              <span className="font-mono text-[0.5rem] text-[var(--text-4)] truncate">{v.note}</span>
+              <code className="font-mono text-[0.6rem] text-[var(--cyan-light)] flex-1">{v.key}</code>
+              <span className="font-mono text-[0.5rem] text-[var(--dim)] hidden sm:block">{v.note}</span>
             </div>
           ))}
         </div>
       </section>
-
     </div>
   );
 }
