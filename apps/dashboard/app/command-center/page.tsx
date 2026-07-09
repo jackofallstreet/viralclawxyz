@@ -1115,22 +1115,28 @@ export default function CommandCenter() {
         <div className="canvas-area" style={{flex:1,position:"relative",overflowY:"auto",overflowX:"hidden"}}>
           {/* Tall scroll container — gives absolute windows room to scroll into */}
           <div style={{position:"relative",minHeight:"200vh",width:"100%"}}>
-          {/* Empty state */}
+          {/* Empty state — fixed center so always visible regardless of scroll */}
           {openCount===0&&(
-            <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",pointerEvents:"none"}}>
-              <div style={{textAlign:"center",opacity:0.3}}>
-    <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:8}}>
-                  <Image src="/viralclaw_avi.png" alt="ViralClaw" width={30} height={30}
-                    style={{objectFit:"contain",flexShrink:0}} onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
-                  <p style={{fontSize:"1.4rem",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:"var(--text1)",lineHeight:1}}>ViralClaw</p>
-                </div>
-                <p style={{fontSize:"0.5rem",letterSpacing:"0.2em",textTransform:"uppercase",color:"var(--text3)",marginTop:2}}>Synchronization intelligence layer</p>
-                <p style={{fontSize:"0.52rem",color:"var(--gold)",letterSpacing:"0.1em",textTransform:"uppercase",
-  marginTop:16,padding:"6px 14px",border:"1px solid var(--gold-border)",
-  background:"var(--gold-dim)",display:"inline-block"}}>
-  Open a module from the sidebar or toolbar
-</p>
-              </div>
+            <div style={{position:"fixed",top:"50%",left:"50%",
+              transform:"translate(-50%,-50%)",
+              display:"flex",flexDirection:"column",alignItems:"center",
+              pointerEvents:"none",zIndex:1,textAlign:"center"}}>
+              <Image src="/viralclaw_avi.png" alt="ViralClaw" width={48} height={48}
+                style={{objectFit:"contain",marginBottom:14,opacity:0.8}}
+                onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
+              <p style={{fontSize:"1.6rem",fontWeight:700,letterSpacing:"0.1em",
+                textTransform:"uppercase",color:"var(--text1)",lineHeight:1,marginBottom:8}}>
+                ViralClaw
+              </p>
+              <p style={{fontSize:"0.5rem",letterSpacing:"0.22em",textTransform:"uppercase",
+                color:"var(--text3)",marginBottom:20}}>
+                Synchronization intelligence layer
+              </p>
+              <p style={{fontSize:"0.5rem",color:"var(--gold)",letterSpacing:"0.1em",
+                textTransform:"uppercase",padding:"6px 16px",
+                border:"1px solid var(--gold-border)",background:"var(--gold-dim)"}}>
+                Open a module from the sidebar or toolbar
+              </p>
             </div>
           )}
 
@@ -1142,15 +1148,6 @@ export default function CommandCenter() {
           <SettingsWin  win={wins.settings}  wm={wm}/>
         </div>
 
-        {/* Logo watermark - centered above toolbar */}
-        <div style={{position:"absolute",bottom:84,left:"50%",transform:"translateX(-50%)",zIndex:0,pointerEvents:"none"}}>
-          <div style={{position:"relative",width:180,height:180,display:"flex",alignItems:"center",justifyContent:"center"}}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/viralclaw_avi.png" alt="" aria-hidden="true"
-              style={{width:140,height:140,objectFit:"contain",
-                opacity:0.04,filter:"blur(2px) grayscale(1)",
-                userSelect:"none",pointerEvents:"none"}}/>
-          </div>
           </div>{/* end tall scroll container */}
         </div>
 
