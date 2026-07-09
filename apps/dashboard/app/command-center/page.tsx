@@ -797,8 +797,8 @@ function Clock() {
   },[]);
   return (
     <div>
-      <div style={{fontSize:"0.9rem",fontWeight:700,color:"var(--text2)",letterSpacing:"0.04em"}}>{t}</div>
-      <div style={{fontSize:"0.38rem",color:"var(--text4)",letterSpacing:"0.08em"}}>
+      <div style={{fontSize:"0.9rem",fontWeight:700,color:"var(--text1)",letterSpacing:"0.04em"}}>{t}</div>
+      <div style={{fontSize:"0.38rem",color:"var(--text3)",letterSpacing:"0.08em"}}>
         {new Date().toLocaleDateString("en",{month:"2-digit",day:"2-digit",year:"numeric"})}
       </div>
     </div>
@@ -904,11 +904,11 @@ export default function CommandCenter() {
         background:isOpen?"var(--gold-dim)":"transparent",
         border:"none",borderLeft:`2px solid ${isOpen?"var(--gold)":"transparent"}`,
         cursor:disabled?"not-allowed":"pointer",
-        color:isOpen?"var(--gold)":disabled?"var(--text4)":"var(--text4)",
+        color:isOpen?"var(--gold)":disabled?"var(--text4)":"var(--text2)",
         transition:"all 0.15s",position:"relative",
       }}
       onMouseEnter={e=>{if(!disabled&&!isOpen)e.currentTarget.style.color="var(--text2)";}}
-      onMouseLeave={e=>{if(!isOpen)e.currentTarget.style.color=disabled?"var(--text4)":"var(--text4)";}}>
+      onMouseLeave={e=>{if(!isOpen)e.currentTarget.style.color=disabled?"var(--text4)":"var(--text2)";}}>
         <div style={{position:"relative",flexShrink:0}}>
           <Ic d={icon} size={16}/>
           {badge!=null&&badge>0&&!sideExpanded&&(
@@ -921,7 +921,7 @@ export default function CommandCenter() {
         {sideExpanded&&badge!=null&&badge>0&&(
           <span style={{fontSize:"0.44rem",padding:"1px 6px",borderRadius:10,background:"var(--gold)",color:"#000",fontWeight:700}}>{badge}</span>
         )}
-        {sideExpanded&&disabled&&<span style={{fontSize:"0.38rem",padding:"1px 5px",border:"1px solid var(--border)",color:"var(--text4)"}}>soon</span>}
+        {sideExpanded&&disabled&&<span style={{fontSize:"0.38rem",padding:"1px 5px",border:"1px solid var(--border2)",color:"var(--text3)"}}>soon</span>}
       </button>
     );
   };
@@ -955,19 +955,19 @@ export default function CommandCenter() {
           onMouseEnter={e=>(e.currentTarget.style.color="var(--gold)")}
           onMouseLeave={e=>(e.currentTarget.style.color="var(--text3)")}>
             <Ic d="M3 12h18M3 6h18M3 18h18" size={16}/>
-            {sideExpanded&&<span style={{fontSize:"0.52rem",letterSpacing:"0.16em",textTransform:"uppercase",color:"var(--text3)"}}>COLLAPSE</span>}
+            {sideExpanded&&<span style={{fontSize:"0.52rem",letterSpacing:"0.16em",textTransform:"uppercase",color:"var(--text2)"}}>COLLAPSE</span>}
           </button>
         </div>
 
         {/* Nav items */}
         <nav style={{flex:1,overflowY:"auto",padding:"12px 0"}}>
-          {sideExpanded&&<div style={{padding:"4px 16px 6px",fontSize:"0.4rem",letterSpacing:"0.2em",textTransform:"uppercase",color:"var(--text4)"}}>Intelligence</div>}
+          {sideExpanded&&<div style={{padding:"4px 16px 6px",fontSize:"0.4rem",letterSpacing:"0.2em",textTransform:"uppercase",color:"var(--text3)"}}>Intelligence</div>}
           {SIDE_TOP.map(n=>(
             <SBtn key={n.id} id={n.id} icon={n.icon} label={n.label}
               badge={n.id==="briefs"?pendingCount:n.id==="feed"?briefs.length:null}/>
           ))}
           {sideExpanded&&<div style={{height:1,background:"var(--border)",margin:"10px 0"}}/>}
-          {sideExpanded&&<div style={{padding:"0 16px 6px",fontSize:"0.4rem",letterSpacing:"0.2em",textTransform:"uppercase",color:"var(--text4)"}}>Coming soon</div>}
+          {sideExpanded&&<div style={{padding:"0 16px 6px",fontSize:"0.4rem",letterSpacing:"0.2em",textTransform:"uppercase",color:"var(--text3)"}}>Coming soon</div>}
           {!sideExpanded&&<div style={{height:1,background:"var(--border)",margin:"8px 12px"}}/>}
           {SIDE_BOTTOM.map((n,i)=>(
             n.id
@@ -1007,9 +1007,9 @@ export default function CommandCenter() {
           <div style={{display:"flex",alignItems:"center",gap:8}}>
             <Image src="/viralclaw_avi.png" alt="ViralClaw" width={20} height={20}
               style={{objectFit:"contain"}} onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
-            <span style={{fontSize:"0.5rem",letterSpacing:"0.14em",textTransform:"uppercase",color:"var(--text3)"}}>ViralClaw</span>
+            <span style={{fontSize:"0.5rem",letterSpacing:"0.14em",textTransform:"uppercase",color:"var(--text1)"}}>ViralClaw</span>
             <span style={{color:"var(--text4)",fontSize:"0.4rem"}}>·</span>
-            <span style={{fontSize:"0.5rem",letterSpacing:"0.1em",textTransform:"uppercase",color:"var(--text4)"}}>Command Center</span>
+            <span style={{fontSize:"0.5rem",letterSpacing:"0.1em",textTransform:"uppercase",color:"var(--text2)"}}>Command Center</span>
           </div>
           {/* Center — Search pill */}
           <div className="topbar-center" style={{display:"flex",alignItems:"center",gap:8,background:"var(--surface2)",
@@ -1028,7 +1028,7 @@ export default function CommandCenter() {
               <span style={{width:5,height:5,borderRadius:"50%",background:"var(--green)",animation:"blink 2s ease infinite",display:"inline-block"}}/>
               <span style={{fontSize:"0.46rem",letterSpacing:"0.1em",textTransform:"uppercase",color:"var(--green)"}}>Live</span>
             </div>
-            <div style={{fontSize:"0.46rem",color:"var(--text4)",border:"1px solid var(--border)",padding:"4px 10px"}}>
+            <div style={{fontSize:"0.46rem",color:"var(--text2)",border:"1px solid var(--border2)",padding:"4px 10px"}}>
               {briefs.length} briefs · {openCount} windows
             </div>
             <div style={{width:28,height:28,borderRadius:"50%",background:"var(--gold-dim)",
@@ -1040,15 +1040,17 @@ export default function CommandCenter() {
 
         {/* Canvas area */}
         <div className="canvas-area" style={{flex:1,position:"relative",overflowY:"auto",overflowX:"hidden"}}>
+          {/* Tall scroll container — gives absolute windows room to scroll into */}
+          <div style={{position:"relative",minHeight:"200vh",width:"100%"}}>
           {/* Empty state */}
           {openCount===0&&(
             <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",pointerEvents:"none"}}>
               <div style={{textAlign:"center",opacity:0.3}}>
                 <Image src="/viralclaw_avi.png" alt="ViralClaw" width={36} height={36}
                   style={{objectFit:"contain",margin:"0 auto 14px"}} onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
-                <p style={{fontSize:"1.4rem",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:"var(--text2)",lineHeight:1.1}}>ViralClaw</p>
-                <p style={{fontSize:"0.5rem",letterSpacing:"0.2em",textTransform:"uppercase",color:"var(--text4)",marginTop:6}}>Synchronization intelligence layer</p>
-                <p style={{fontSize:"0.44rem",color:"var(--text4)",marginTop:16}}>Open a module from the sidebar or toolbar</p>
+                <p style={{fontSize:"1.4rem",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:"var(--text1)",lineHeight:1.1}}>ViralClaw</p>
+                <p style={{fontSize:"0.5rem",letterSpacing:"0.2em",textTransform:"uppercase",color:"var(--text3)",marginTop:6}}>Synchronization intelligence layer</p>
+                <p style={{fontSize:"0.44rem",color:"var(--text3)",marginTop:16}}>Open a module from the sidebar or toolbar</p>
               </div>
             </div>
           )}
@@ -1070,6 +1072,7 @@ export default function CommandCenter() {
                 opacity:0.04,filter:"blur(2px) grayscale(1)",
                 userSelect:"none",pointerEvents:"none"}}/>
           </div>
+          </div>{/* end tall scroll container */}
         </div>
 
         {/* Bottom toolbar */}
@@ -1083,11 +1086,11 @@ export default function CommandCenter() {
                 padding:"10px 18px",minWidth:68,borderRadius:10,
                 border:`1px solid ${isOpen?"var(--gold-border)":"var(--border)"}`,
                 background:isOpen?"var(--gold-dim)":"rgba(255,255,255,0.02)",
-                cursor:"pointer",color:isOpen?"var(--gold)":"var(--text4)",
+                cursor:"pointer",color:isOpen?"var(--gold)":"var(--text2)",
                 transition:"all 0.15s",position:"relative",
               }}
               onMouseEnter={e=>{if(!isOpen){e.currentTarget.style.color="var(--text2)";e.currentTarget.style.borderColor="var(--border2)";}}}
-              onMouseLeave={e=>{if(!isOpen){e.currentTarget.style.color="var(--text4)";e.currentTarget.style.borderColor="var(--border)";}}}
+              onMouseLeave={e=>{if(!isOpen){e.currentTarget.style.color="var(--text2)";e.currentTarget.style.borderColor="var(--border)";}}}
               >
                 <Ic d={item.icon} size={18}/>
                 <span style={{fontSize:"0.4rem",letterSpacing:"0.08em",textTransform:"uppercase"}}>{item.label}</span>
