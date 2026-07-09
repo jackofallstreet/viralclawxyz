@@ -1146,8 +1146,6 @@ export default function CommandCenter() {
           <FeedWin     win={wins.feed}      wm={wm} briefs={briefs}/>
           <AnalyticsWin win={wins.analytics} wm={wm} briefs={briefs} loading={briefsLoading}/>
           <SettingsWin  win={wins.settings}  wm={wm}/>
-        </div>
-
           </div>{/* end tall scroll container */}
         </div>
 
