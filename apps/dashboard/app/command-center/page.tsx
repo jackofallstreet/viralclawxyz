@@ -294,10 +294,39 @@ function BriefsWin({ win, wm, briefs, loading, err }: {
   const [sel, setSel] = useState<Brief|null>(null);
   const [tab, setTab] = useState<"all"|"pending"|"approved">("all");
   const [upd, setUpd] = useState<string|null>(null);
-  const filtered = tab==="all" ? briefs : briefs.filter(b=>b.status===tab);
-  const pending = briefs.filter(b=>b.status==="pending").length;
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<"newest"|"oldest"|"conviction_hi"|"conviction_lo">("newest");
+  const [page, setPage] = useState(1);
+  const [deleting, setDeleting] = useState<string|null>(null);
+  const PER_PAGE = 10;
+
   const wc=(w:string)=>w==="open"?"var(--green)":w==="closing"?"var(--amber)":"var(--text4)";
   const cc=(c:number)=>c>=8?"var(--green)":c>=6?"var(--amber)":"var(--gold)";
+
+  // Filter by tab + search
+  let filtered = tab==="all" ? briefs : briefs.filter(b=>b.status===tab);
+  if (search.trim()) {
+    const q = search.toLowerCase();
+    filtered = filtered.filter(b => {
+      let p:any={}; try{p=JSON.parse(b.content);}catch{}
+      const text = `${p.signal_summary||""} ${p.narrative_summary||""} ${b.type} ${b.status} ${b.window} ${(b.chains||[]).join(" ")}`.toLowerCase();
+      return text.includes(q);
+    });
+  }
+  // Sort
+  filtered = [...filtered].sort((a,b) => {
+    if (sort==="oldest") return new Date(a.created_at).getTime()-new Date(b.created_at).getTime();
+    if (sort==="conviction_hi") return (b.conviction||0)-(a.conviction||0);
+    if (sort==="conviction_lo") return (a.conviction||0)-(b.conviction||0);
+    return new Date(b.created_at).getTime()-new Date(a.created_at).getTime();
+  });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
+  const paginated = filtered.slice((page-1)*PER_PAGE, page*PER_PAGE);
+  const pending = briefs.filter(b=>b.status==="pending").length;
+
+  // Reset page when filter/search changes
+  const resetPage = () => setPage(1);
 
   async function upd_(id:string, status:string) {
     setUpd(id);
@@ -305,17 +334,26 @@ function BriefsWin({ win, wm, briefs, loading, err }: {
     wm.refresh(); setSel(prev=>prev?.id===id?{...prev,status}:prev); setUpd(null);
   }
 
+  async function deleteBrief(id:string) {
+    setDeleting(id);
+    await fetch("/api/briefs",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({id})}).catch(()=>{});
+    if (sel?.id===id) setSel(null);
+    wm.refresh(); setDeleting(null);
+  }
+
   return (
     <Window id="briefs" title={`Briefs${pending>0?` · ${pending} pending`:""}`}
-      win={win} onFocus={wm.focus} onClose={wm.close} onMin={wm.min} w={800}>
-      <div style={{display:"flex",height:"100%",minHeight:460}}>
+      win={win} onFocus={wm.focus} onClose={wm.close} onMin={wm.min} w={860}>
+      <div style={{display:"flex",height:"100%",minHeight:480}}>
         {/* List */}
-        <div style={{width:"52%",borderRight:"1px solid var(--border)",display:"flex",flexDirection:"column"}}>
+        <div style={{width:"54%",borderRight:"1px solid var(--border)",display:"flex",flexDirection:"column"}}>
+
+          {/* Tabs + refresh */}
           <div style={{display:"flex",borderBottom:"1px solid var(--border)",flexShrink:0}}>
             {(["all","pending","approved"] as const).map(t=>(
-              <button key={t} type="button" onClick={()=>setTab(t)} style={{
-                fontSize:"0.48rem",letterSpacing:"0.08em",textTransform:"uppercase",
-                padding:"8px 14px",background:"transparent",border:"none",cursor:"pointer",
+              <button key={t} type="button" onClick={()=>{setTab(t);resetPage();}} style={{
+                fontSize:"0.46rem",letterSpacing:"0.08em",textTransform:"uppercase",
+                padding:"7px 12px",background:"transparent",border:"none",cursor:"pointer",
                 borderBottom:`2px solid ${tab===t?"var(--gold)":"transparent"}`,
                 color:tab===t?"var(--text1)":"var(--text4)",transition:"all 0.12s",
               }}>{t}</button>
@@ -323,63 +361,130 @@ function BriefsWin({ win, wm, briefs, loading, err }: {
             <div style={{flex:1}}/>
             <button type="button" onClick={wm.refresh} title="Refresh" style={{
               background:"transparent",border:"none",cursor:"pointer",
-              color:"var(--text4)",padding:"8px 12px",display:"flex",alignItems:"center",
+              color:"var(--text4)",padding:"7px 10px",display:"flex",alignItems:"center",
             }} onMouseEnter={e=>(e.currentTarget.style.color="var(--gold)")}
                onMouseLeave={e=>(e.currentTarget.style.color="var(--text4)")}>
               <Ic d={P.refresh} size={12}/>
             </button>
           </div>
+
+          {/* Search + sort bar */}
+          <div style={{display:"flex",gap:6,padding:"8px 10px",borderBottom:"1px solid var(--border)",flexShrink:0,background:"var(--surface)"}}>
+            <div style={{flex:1,display:"flex",alignItems:"center",gap:6,background:"rgba(255,255,255,0.03)",border:"1px solid var(--border)",padding:"5px 8px"}}>
+              <Ic d={P.search} size={11}/>
+              <input
+                type="text" value={search}
+                onChange={e=>{setSearch(e.target.value);resetPage();}}
+                placeholder="Search briefs..."
+                style={{background:"transparent",border:"none",outline:"none",fontSize:"0.58rem",
+                  color:"var(--text1)",width:"100%",fontFamily:"var(--font-mono)"}}/>
+              {search&&<button type="button" onClick={()=>{setSearch("");resetPage();}}
+                style={{background:"none",border:"none",cursor:"pointer",color:"var(--text4)",fontSize:"0.7rem",lineHeight:1,padding:0}}>×</button>}
+            </div>
+            <select value={sort} onChange={e=>{setSort(e.target.value as typeof sort);resetPage();}}
+              style={{background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--text3)",
+                fontSize:"0.48rem",padding:"4px 6px",outline:"none",cursor:"pointer",fontFamily:"var(--font-mono)"}}>
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+              <option value="conviction_hi">Score ↓</option>
+              <option value="conviction_lo">Score ↑</option>
+            </select>
+          </div>
+
+          {/* Error */}
           {err&&(
-            <div style={{padding:"8px 14px",borderBottom:"1px solid rgba(239,68,68,0.2)",background:"var(--red-dim)"}}>
-              <p style={{fontSize:"0.48rem",color:"var(--red)"}}>{err}</p>
-              <p style={{fontSize:"0.42rem",color:"var(--text4)",marginTop:2}}>Run SQL schema in Settings. Check env vars.</p>
+            <div style={{padding:"7px 12px",borderBottom:"1px solid rgba(239,68,68,0.2)",background:"var(--red-dim)",flexShrink:0}}>
+              <p style={{fontSize:"0.46rem",color:"var(--red)"}}>{err}</p>
+              <p style={{fontSize:"0.4rem",color:"var(--text4)",marginTop:2}}>Run SQL schema in Settings. Check env vars.</p>
             </div>
           )}
+
+          {/* List */}
           <div style={{flex:1,overflowY:"auto"}}>
             {loading ? (
               <div style={{padding:40,textAlign:"center"}}><Spin/></div>
-            ) : filtered.length===0 ? (
+            ) : paginated.length===0 ? (
               <div style={{padding:"40px 16px",textAlign:"center"}}>
-                <p style={{fontSize:"0.5rem",color:"var(--text4)"}}>No briefs{tab!=="all"?` with status "${tab}"`:" yet"}.</p>
-                <p style={{fontSize:"0.44rem",color:"var(--text4)",marginTop:4}}>Run a signal query and save to generate briefs.</p>
+                <p style={{fontSize:"0.5rem",color:"var(--text4)"}}>
+                  {search ? `No briefs matching "${search}"` : tab!=="all" ? `No ${tab} briefs` : "No briefs yet"}
+                </p>
+                {!search&&tab==="all"&&<p style={{fontSize:"0.44rem",color:"var(--text4)",marginTop:4}}>Run a signal query and save to generate briefs.</p>}
               </div>
             ) : (
-              filtered.map(b=>{
+              paginated.map(b=>{
                 let p:any={}; try{p=JSON.parse(b.content);}catch{}
                 const isSel=sel?.id===b.id;
                 return (
-                  <div key={b.id} onClick={()=>setSel(isSel?null:b)}
-                    style={{padding:"9px 14px",display:"flex",alignItems:"flex-start",gap:10,
-                      cursor:"pointer",borderBottom:"1px solid var(--border)",
-                      background:isSel?"var(--gold-dim)":"transparent",transition:"background 0.12s"}}
+                  <div key={b.id}
+                    style={{padding:"8px 12px",display:"flex",alignItems:"flex-start",gap:8,
+                      borderBottom:"1px solid var(--border)",
+                      background:isSel?"var(--gold-dim)":"transparent",transition:"background 0.12s",
+                      cursor:"pointer"}}
+                    onClick={()=>setSel(isSel?null:b)}
                     onMouseEnter={e=>{if(!isSel)e.currentTarget.style.background="rgba(255,255,255,0.02)";}}
                     onMouseLeave={e=>{if(!isSel)e.currentTarget.style.background="transparent";}}>
                     <span style={{
-                      fontSize:"0.42rem",letterSpacing:"0.06em",textTransform:"uppercase",
-                      padding:"2px 6px",flexShrink:0,marginTop:1,fontWeight:600,
+                      fontSize:"0.4rem",letterSpacing:"0.06em",textTransform:"uppercase",
+                      padding:"2px 5px",flexShrink:0,marginTop:2,fontWeight:600,
                       border:`1px solid ${b.type==="alpha"?"var(--gold-border)":"rgba(34,211,238,0.25)"}`,
                       background:b.type==="alpha"?"var(--gold-dim)":"var(--cyan-dim)",
                       color:b.type==="alpha"?"var(--gold)":"var(--cyan)",
                     }}>{b.type}</span>
                     <div style={{flex:1,minWidth:0}}>
-                      <p style={{fontSize:"0.71rem",color:"var(--text1)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                      <p style={{fontSize:"0.69rem",color:"var(--text1)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
                         {p.signal_summary||p.narrative_summary||"Brief"}
                       </p>
-                      <div style={{display:"flex",gap:8,marginTop:3}}>
-                        <span style={{fontSize:"0.42rem",color:wc(b.window)}}>{b.window}</span>
-                        <span style={{fontSize:"0.42rem",color:"var(--text4)"}}>·</span>
-                        <span style={{fontSize:"0.42rem",color:cc(b.conviction),fontWeight:600}}>{b.conviction}/10</span>
-                        <span style={{fontSize:"0.42rem",color:"var(--text4)"}}>·</span>
-                        <span style={{fontSize:"0.42rem",color:b.status==="approved"?"var(--green)":b.status==="pending"?"var(--amber)":"var(--text4)"}}>
+                      <div style={{display:"flex",gap:6,marginTop:2,flexWrap:"wrap"}}>
+                        <span style={{fontSize:"0.4rem",color:wc(b.window)}}>{b.window}</span>
+                        <span style={{fontSize:"0.4rem",color:"var(--text4)"}}>·</span>
+                        <span style={{fontSize:"0.4rem",color:cc(b.conviction),fontWeight:600}}>{b.conviction}/10</span>
+                        <span style={{fontSize:"0.4rem",color:"var(--text4)"}}>·</span>
+                        <span style={{fontSize:"0.4rem",color:b.status==="approved"?"var(--green)":b.status==="pending"?"var(--amber)":"var(--text4)"}}>
                           {b.status}
                         </span>
+                        <span style={{fontSize:"0.4rem",color:"var(--text4)"}}>·</span>
+                        <span style={{fontSize:"0.4rem",color:"var(--text4)"}}>{new Date(b.created_at).toLocaleDateString()}</span>
                       </div>
                     </div>
+                    {/* Delete button */}
+                    <button type="button"
+                      onClick={e=>{e.stopPropagation();deleteBrief(b.id);}}
+                      disabled={deleting===b.id}
+                      title="Delete brief"
+                      style={{background:"transparent",border:"none",cursor:"pointer",
+                        color:"var(--text4)",padding:"2px 4px",flexShrink:0,opacity:deleting===b.id?0.4:1,
+                        transition:"color 0.12s"}}
+                      onMouseEnter={e=>(e.currentTarget.style.color="var(--red)")}
+                      onMouseLeave={e=>(e.currentTarget.style.color="var(--text4)")}>
+                      <Ic d={P.close} size={10}/>
+                    </button>
                   </div>
                 );
               })
             )}
           </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
+              padding:"8px 12px",borderTop:"1px solid var(--border)",background:"var(--surface)",flexShrink:0}}>
+              <button type="button" onClick={()=>setPage(p=>Math.max(1,p-1))} disabled={page===1}
+                style={{fontSize:"0.46rem",letterSpacing:"0.06em",textTransform:"uppercase",
+                  padding:"4px 10px",background:"transparent",border:"1px solid var(--border)",
+                  color:page===1?"var(--text4)":"var(--text2)",cursor:page===1?"not-allowed":"pointer"}}>
+                ← Prev
+              </button>
+              <span style={{fontSize:"0.44rem",color:"var(--text4)"}}>
+                Page {page} of {totalPages} · {filtered.length} brief{filtered.length!==1?"s":""}
+              </span>
+              <button type="button" onClick={()=>setPage(p=>Math.min(totalPages,p+1))} disabled={page===totalPages}
+                style={{fontSize:"0.46rem",letterSpacing:"0.06em",textTransform:"uppercase",
+                  padding:"4px 10px",background:"transparent",border:"1px solid var(--border)",
+                  color:page===totalPages?"var(--text4)":"var(--text2)",cursor:page===totalPages?"not-allowed":"pointer"}}>
+                Next →
+              </button>
+            </div>
+          )}
         </div>
         {/* Detail */}
         <div style={{flex:1,display:"flex",flexDirection:"column"}}>
@@ -754,6 +859,18 @@ export default function CommandCenter() {
 
   useEffect(()=>{refresh();},[refresh]);
 
+  // ⌘K opens briefs window with search focused
+  useEffect(()=>{
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey||e.ctrlKey) && e.key==="k") {
+        e.preventDefault();
+        open("briefs");
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [open]);
+
   const focus=useCallback((id:WinId)=>{
     setZTop(z=>{const n=z+1;setWins(p=>({...p,[id]:{...p[id],z:n}}));return n;});
   },[]);
@@ -771,12 +888,8 @@ export default function CommandCenter() {
 
   function toggleTheme(){
     const n=theme==="dark"?"light":"dark"; setTheme(n);
-    document.documentElement.style.setProperty("--bg",n==="dark"?"#080809":"#f5f5f3");
-    document.documentElement.style.setProperty("--surface",n==="dark"?"#0e0e10":"#ffffff");
-    document.documentElement.style.setProperty("--text1",n==="dark"?"#f0f0f2":"#111110");
-    document.documentElement.style.setProperty("--text2",n==="dark"?"#c8c8d0":"#2c2c2a");
-    document.documentElement.style.setProperty("--text4",n==="dark"?"#4a4a58":"#b8b8c0");
-    document.documentElement.style.setProperty("--border",n==="dark"?"rgba(255,255,255,0.06)":"rgba(0,0,0,0.08)");
+    document.documentElement.setAttribute("data-theme", n);
+    localStorage.setItem("vc-theme", n);
   }
 
   // Sidebar button
@@ -895,14 +1008,15 @@ export default function CommandCenter() {
             <span style={{color:"var(--text4)",fontSize:"0.4rem"}}>·</span>
             <span style={{fontSize:"0.5rem",letterSpacing:"0.1em",textTransform:"uppercase",color:"var(--text4)"}}>Command Center</span>
           </div>
-          {/* Center — Locate/search pill */}
+          {/* Center — Search pill */}
           <div style={{display:"flex",alignItems:"center",gap:8,background:"var(--surface2)",
             border:"1px solid var(--border)",padding:"6px 16px",cursor:"pointer",
-            transition:"border-color 0.12s",minWidth:220,}}
+            transition:"border-color 0.12s",minWidth:220}}
+          onClick={()=>{ open("briefs"); }}
           onMouseEnter={e=>(e.currentTarget.style.borderColor="var(--gold-border)")}
           onMouseLeave={e=>(e.currentTarget.style.borderColor="var(--border)")}>
             <Ic d={P.search} size={13}/>
-            <span style={{fontSize:"0.5rem",letterSpacing:"0.1em",textTransform:"uppercase",color:"var(--text4)",flex:1}}>Search intelligence</span>
+            <span style={{fontSize:"0.5rem",letterSpacing:"0.1em",textTransform:"uppercase",color:"var(--text4)",flex:1}}>Search saved briefs</span>
             <span style={{fontSize:"0.44rem",letterSpacing:"0.08em",color:"var(--text4)",border:"1px solid var(--border)",padding:"1px 5px"}}>⌘K</span>
           </div>
           {/* Right */}

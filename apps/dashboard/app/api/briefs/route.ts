@@ -77,3 +77,20 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { id } = await req.json();
+    if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
+
+    const { error } = await db()
+      .from("briefs")
+      .delete()
+      .eq("id", id);
+
+    if (error) throw error;
+    return NextResponse.json({ deleted: true });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
