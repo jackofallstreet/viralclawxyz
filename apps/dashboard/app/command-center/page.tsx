@@ -75,17 +75,17 @@ function Window({ id, title, win, onFocus, onClose, onMin, children, w=680 }:
   const maxW = typeof window !== "undefined" ? Math.min(w, window.innerWidth - 80) : w;
 
   return (
-    <div onMouseDown={() => onFocus(id)} style={{
+    <div onMouseDown={() => onFocus(id)} className="float-window" style={{
       position:"absolute", left:pos.x, top:pos.y, width:maxW, zIndex:win.z,
-      border:"1px solid var(--gold-border)", background:"rgba(8,8,9,0.97)",
-      boxShadow:"0 0 0 1px var(--gold-dim), 0 24px 64px rgba(0,0,0,0.8)",
+      border:"1px solid var(--gold-border)", background:"var(--surface)",
+      boxShadow:"0 0 0 1px var(--gold-dim), 0 24px 64px rgba(0,0,0,0.5)",
       display:"flex", flexDirection:"column", maxHeight:"calc(100vh - 180px)",
       animation:"fadeIn 0.18s ease",
     }}>
       {/* Title bar */}
       <div onMouseDown={onMD} style={{
         display:"flex", alignItems:"center", gap:8, padding:"8px 12px",
-        background:"rgba(245,166,35,0.04)", borderBottom:"1px solid var(--gold-border)",
+        background:"var(--surface2)", borderBottom:"1px solid var(--gold-border)",
         cursor:"grab", userSelect:"none", flexShrink:0,
       }}>
         <span style={{ color:"var(--gold)", fontSize:8 }}>◆</span>
@@ -887,7 +887,8 @@ export default function CommandCenter() {
   const pendingCount=briefs.filter(b=>b.status==="pending").length;
 
   function toggleTheme(){
-    const n=theme==="dark"?"light":"dark"; setTheme(n);
+    const n=theme==="dark"?"light":"dark";
+    setTheme(n);
     document.documentElement.setAttribute("data-theme", n);
     localStorage.setItem("vc-theme", n);
   }
@@ -926,20 +927,22 @@ export default function CommandCenter() {
   };
 
   return (
-    <div style={{width:"100vw",height:"100vh",overflow:"hidden",display:"flex",background:"var(--bg)",position:"relative"}}>
+    <div style={{width:"100vw",height:"100vh",overflow:"hidden",display:"flex",background:"var(--bg)",position:"relative"}}
+      className="dashboard-root">
 
       {/* Grid background */}
       <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:0,
         backgroundImage:"linear-gradient(var(--gold-dim) 1px,transparent 1px),linear-gradient(90deg,var(--gold-dim) 1px,transparent 1px)",
         backgroundSize:"48px 48px",opacity:0.5}}/>
 
-      {/* ── Sidebar ── */}
+      {/* ── Sidebar ── (hidden on mobile, shown md+) */}
       <div style={{
         width:sideExpanded?280:64,flexShrink:0,zIndex:300,
-        background:"rgba(8,8,9,0.97)",borderRight:"1px solid var(--gold-border)",
+        background:"var(--surface)",borderRight:"1px solid var(--gold-border)",
         display:"flex",flexDirection:"column",
         transition:"width 0.22s cubic-bezier(0.4,0,0.2,1)",overflow:"hidden",
-      }}>
+      }}
+      className="sidebar-desktop">
         {/* Top: hamburger + collapse label */}
         <div style={{height:52,flexShrink:0,display:"flex",alignItems:"center",
           padding:sideExpanded?"0 16px":"0",justifyContent:sideExpanded?"space-between":"center",
@@ -986,8 +989,8 @@ export default function CommandCenter() {
               }}
               onMouseEnter={e=>(e.currentTarget.style.borderColor="var(--gold-border)")}
               onMouseLeave={e=>(e.currentTarget.style.borderColor="var(--border)")}>
-                <Ic d={theme==="dark"?P.moon:P.sun} size={12}/>
-                {theme==="dark"?"DARK":"LIGHT"}
+                <Ic d={theme==="dark"?P.sun:P.moon} size={12}/>
+                {theme==="dark"?"LIGHT MODE":"DARK MODE"}
               </button>
             )}
           </div>
@@ -998,7 +1001,7 @@ export default function CommandCenter() {
       <div style={{flex:1,position:"relative",overflow:"hidden",display:"flex",flexDirection:"column"}}>
 
         {/* Top bar */}
-        <div style={{height:52,flexShrink:0,background:"rgba(8,8,9,0.95)",borderBottom:"1px solid var(--gold-border)",
+        <div style={{height:52,flexShrink:0,background:"var(--surface)",borderBottom:"1px solid var(--gold-border)",
           display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 20px",gap:16,zIndex:200}}>
           {/* Left */}
           <div style={{display:"flex",alignItems:"center",gap:8}}>
@@ -1009,7 +1012,7 @@ export default function CommandCenter() {
             <span style={{fontSize:"0.5rem",letterSpacing:"0.1em",textTransform:"uppercase",color:"var(--text4)"}}>Command Center</span>
           </div>
           {/* Center — Search pill */}
-          <div style={{display:"flex",alignItems:"center",gap:8,background:"var(--surface2)",
+          <div className="topbar-center" style={{display:"flex",alignItems:"center",gap:8,background:"var(--surface2)",
             border:"1px solid var(--border)",padding:"6px 16px",cursor:"pointer",
             transition:"border-color 0.12s",minWidth:220}}
           onClick={()=>{ open("briefs"); }}
@@ -1020,7 +1023,7 @@ export default function CommandCenter() {
             <span style={{fontSize:"0.44rem",letterSpacing:"0.08em",color:"var(--text4)",border:"1px solid var(--border)",padding:"1px 5px"}}>⌘K</span>
           </div>
           {/* Right */}
-          <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <div className="topbar-right-full" style={{display:"flex",alignItems:"center",gap:12}}>
             <div style={{display:"flex",alignItems:"center",gap:6}}>
               <span style={{width:5,height:5,borderRadius:"50%",background:"var(--green)",animation:"blink 2s ease infinite",display:"inline-block"}}/>
               <span style={{fontSize:"0.46rem",letterSpacing:"0.1em",textTransform:"uppercase",color:"var(--green)"}}>Live</span>
@@ -1036,7 +1039,7 @@ export default function CommandCenter() {
         </div>
 
         {/* Canvas area */}
-        <div style={{flex:1,position:"relative",overflow:"hidden"}}>
+        <div className="canvas-area" style={{flex:1,position:"relative",overflowY:"auto",overflowX:"hidden"}}>
           {/* Empty state */}
           {openCount===0&&(
             <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",pointerEvents:"none"}}>
@@ -1058,28 +1061,24 @@ export default function CommandCenter() {
           <SettingsWin  win={wins.settings}  wm={wm}/>
         </div>
 
-        {/* Status pill */}
-        <div style={{position:"absolute",bottom:84,left:"50%",transform:"translateX(-50%)",zIndex:200}}>
-          <div style={{display:"flex",alignItems:"center",gap:10,background:"rgba(14,14,16,0.92)",
-            border:"1px solid var(--border)",padding:"7px 18px",backdropFilter:"blur(10px)"}}>
-            <span style={{width:6,height:6,borderRadius:"50%",background:"var(--green)",animation:"blink 1.8s ease infinite",display:"inline-block"}}/>
-            <span style={{fontSize:"0.48rem",letterSpacing:"0.08em",color:"var(--green)"}}>LIVE</span>
-            <span style={{fontSize:"0.44rem",color:"var(--text4)"}}>·</span>
-            <span style={{fontSize:"0.48rem",color:"var(--gold)",letterSpacing:"0.04em"}}>{briefs.filter(b=>b.status==="pending").length} pending</span>
-            <span style={{fontSize:"0.44rem",color:"var(--text4)"}}>·</span>
-            <span style={{fontSize:"0.48rem",color:"var(--text4)"}}>{openCount} windows</span>
-            <span style={{fontSize:"0.44rem",color:"var(--text4)"}}>·</span>
-            <span style={{fontSize:"0.48rem",color:"var(--text4)"}}>{briefs.length} briefs</span>
+        {/* Logo watermark - centered above toolbar */}
+        <div style={{position:"absolute",bottom:84,left:"50%",transform:"translateX(-50%)",zIndex:0,pointerEvents:"none"}}>
+          <div style={{position:"relative",width:180,height:180,display:"flex",alignItems:"center",justifyContent:"center"}}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/viralclaw_avi.png" alt="" aria-hidden="true"
+              style={{width:140,height:140,objectFit:"contain",
+                opacity:0.04,filter:"blur(2px) grayscale(1)",
+                userSelect:"none",pointerEvents:"none"}}/>
           </div>
         </div>
 
         {/* Bottom toolbar */}
-        <div style={{height:72,flexShrink:0,background:"rgba(8,8,9,0.97)",borderTop:"1px solid var(--gold-border)",
+        <div style={{height:72,flexShrink:0,background:"var(--surface)",borderTop:"1px solid var(--gold-border)",
           display:"flex",alignItems:"center",justifyContent:"center",gap:10,zIndex:200}}>
           {TOOLBAR.map(item=>{
             const isOpen=wins[item.id].open;
             return (
-              <button key={item.id} type="button" onClick={()=>toggle(item.id)} style={{
+              <button key={item.id} type="button" onClick={()=>toggle(item.id)} className="toolbar-btn" style={{
                 display:"flex",flexDirection:"column",alignItems:"center",gap:5,
                 padding:"10px 18px",minWidth:68,borderRadius:10,
                 border:`1px solid ${isOpen?"var(--gold-border)":"var(--border)"}`,
@@ -1099,7 +1098,56 @@ export default function CommandCenter() {
         </div>
       </div>
 
-      <style>{`@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}} @keyframes spin{to{transform:rotate(360deg)}} @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}`}</style>
+      <style>{`
+        @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+        /* Mobile — hide desktop sidebar, make toolbar scroll-friendly */
+        @media (max-width: 767px) {
+          .sidebar-desktop { display: none !important; }
+          .dashboard-root { flex-direction: column; }
+        }
+
+        /* Mobile toolbar - smaller padding */
+        @media (max-width: 480px) {
+          .toolbar-btn { padding: 8px 10px !important; min-width: 52px !important; }
+          .toolbar-btn span:last-child { display: none; }
+        }
+
+        /* Canvas on mobile - full width */
+        @media (max-width: 767px) {
+          .canvas-area { width: 100vw; }
+        }
+
+        /* Floating windows on mobile - full width, top-aligned */
+        @media (max-width: 767px) {
+          .float-window {
+            position: relative !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            max-height: none !important;
+            margin-bottom: 12px;
+            box-shadow: none !important;
+          }
+        }
+
+        /* Mobile topbar compact */
+        @media (max-width: 767px) {
+          .topbar-center { display: none !important; }
+          .topbar-right-full { display: none !important; }
+        }
+
+        /* Theme transitions */
+        *, *::before, *::after {
+          transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease;
+        }
+        .no-transition, .no-transition * {
+          transition: none !important;
+        }
+      `}</style>
     </div>
   );
 }
