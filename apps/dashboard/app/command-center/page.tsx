@@ -860,17 +860,7 @@ export default function CommandCenter() {
 
   useEffect(()=>{refresh();},[refresh]);
 
-  // ⌘K opens briefs window with search focused
-  useEffect(()=>{
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey||e.ctrlKey) && e.key==="k") {
-        e.preventDefault();
-        open("briefs");
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [open]);
+
 
   const focus=useCallback((id:WinId)=>{
     setZTop(z=>{const n=z+1;setWins(p=>({...p,[id]:{...p[id],z:n}}));return n;});
@@ -881,6 +871,15 @@ export default function CommandCenter() {
   const close=useCallback((id:WinId)=>{setWins(p=>({...p,[id]:{...p[id],open:false}}));},[]);
   const min=useCallback((id:WinId)=>{setWins(p=>({...p,[id]:{...p[id],min:!p[id].min}}));},[]);
   const toggle=useCallback((id:WinId)=>{wins[id].open?close(id):open(id);},[wins,open,close]);
+
+  // ⌘K — open briefs window
+  useEffect(()=>{
+    const handler=(e:KeyboardEvent)=>{
+      if((e.metaKey||e.ctrlKey)&&e.key==="k"){e.preventDefault();open("briefs");}
+    };
+    window.addEventListener("keydown",handler);
+    return()=>window.removeEventListener("keydown",handler);
+  },[open]);
 
   const wm:WMActions={focus,close,min,refresh};
 
