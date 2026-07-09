@@ -16,20 +16,16 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: {
-    default: "ViralClaw — Command Center",
-    template: "%s • ViralClaw",
-  },
-
+  title: "ViralClaw — Command Center",
   description: "Synchronization intelligence layer",
 
-  applicationName: "ViralClaw",
+  icons: {
+    icon: "/viralclaw_icon.png",
+    shortcut: "/viralclaw_icon.png",
+    apple: "/viralclaw_icon.png",
+  },
 
   referrer: "no-referrer",
-
-  generator: undefined,
-
-  metadataBase: undefined,
 
   robots: {
     index: false,
@@ -49,43 +45,15 @@ export const metadata: Metadata = {
       notranslate: true,
     },
   },
-
-  icons: {
-    icon: [
-      { url: "/viralclaw_icon.png" },
-      { url: "/viralclaw_icon.png", sizes: "32x32", type: "image/png" },
-      { url: "/viralclaw_icon.png", sizes: "16x16", type: "image/png" },
-    ],
-    apple: "/viralclaw_icon.png",
-    shortcut: "/viralclaw_icon.png",
-  },
-
-  manifest: "/site.webmanifest",
-
-  openGraph: {
-    title: "ViralClaw – Command center",
-    description: "Synchronization intelligence layer",
-    type: "website",
-  },
-
-  twitter: {
-    card: "summary",
-    title: "ViralClaw",
-    description: "Synchronization intelligence layer",
-  },
 };
 
 export default function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;
-}) {
+}>) {
   return (
-    <html
-      lang="en"
-      className={mono.variable}
-      suppressHydrationWarning
-    >
+    <html lang="en" className={mono.variable} suppressHydrationWarning>
       <body>{children}</body>
     </html>
   );
