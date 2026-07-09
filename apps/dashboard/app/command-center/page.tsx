@@ -51,62 +51,135 @@ function Window({ id, title, win, onFocus, onClose, onMin, children, w=680 }:
     onClose:(id:WinId)=>void; onMin:(id:WinId)=>void;
     children:React.ReactNode; w?:number }) {
   const [pos, setPos] = useState({ x: win.x, y: win.y });
+  const [maximized, setMaximized] = useState(false);
+  const [prevPos, setPrevPos] = useState({ x: win.x, y: win.y });
   const drag = useRef(false);
   const off  = useRef({ x:0, y:0 });
 
   const onMD = (e: React.MouseEvent) => {
+    if (maximized) return;
     if ((e.target as HTMLElement).closest("button,input,textarea,select,a")) return;
     drag.current = true;
     off.current = { x: e.clientX - pos.x, y: e.clientY - pos.y };
     onFocus(id); e.preventDefault();
   };
+
+  function toggleMax() {
+    if (!maximized) {
+      setPrevPos(pos);
+      setMaximized(true);
+    } else {
+      setPos(prevPos);
+      setMaximized(false);
+    }
+    onFocus(id);
+  }
+
   useEffect(() => {
     const mv = (e: MouseEvent) => {
-      if (!drag.current) return;
+      if (!drag.current || maximized) return;
       setPos({ x: Math.max(0, e.clientX-off.current.x), y: Math.max(0, e.clientY-off.current.y) });
     };
     const up = () => { drag.current = false; };
     window.addEventListener("mousemove", mv);
     window.addEventListener("mouseup", up);
     return () => { window.removeEventListener("mousemove", mv); window.removeEventListener("mouseup", up); };
-  }, []);
+  }, [maximized]);
 
   if (!win.open) return null;
-  const maxW = typeof window !== "undefined" ? Math.min(w, window.innerWidth - 80) : w;
+
+  const vw = typeof window !== "undefined" ? window.innerWidth : 1440;
+  const vh = typeof window !== "undefined" ? window.innerHeight : 900;
+  const sidebarW = 64; // collapsed sidebar
+  const toolbarH = 72;
+  const topbarH  = 52;
+
+  const maxStyle = maximized ? {
+    position:"fixed" as const,
+    left: sidebarW,
+    top: topbarH,
+    width: vw - sidebarW,
+    height: vh - topbarH - toolbarH,
+    maxHeight: "none" as const,
+    zIndex: win.z,
+    border: "1.5px solid transparent",
+    backgroundImage:`linear-gradient(var(--surface), var(--surface)), linear-gradient(135deg, var(--gold), rgba(245,166,35,0.2) 40%, var(--cyan) 70%, var(--gold))`,
+    backgroundOrigin:"border-box",
+    backgroundClip:"padding-box, border-box",
+    boxShadow:`0 0 60px rgba(245,166,35,0.18), 0 0 120px rgba(245,166,35,0.08), inset 0 0 0 1px rgba(245,166,35,0.12)`,
+    animation:"none",
+  } : {
+    position:"absolute" as const,
+    left: pos.x,
+    top: pos.y,
+    width: Math.min(w, vw - 80),
+    height: "auto" as const,
+    maxHeight: "calc(100vh - 180px)",
+    zIndex: win.z,
+    border: "1px solid var(--gold-border)",
+    backgroundImage: "none",
+    backgroundOrigin: "border-box",
+    backgroundClip: "border-box",
+    boxShadow: "0 0 0 1px var(--gold-dim), 0 24px 64px rgba(0,0,0,0.5)",
+    animation: "fadeIn 0.18s ease",
+  };
 
   return (
-    <div onMouseDown={() => onFocus(id)} className="float-window" style={{
-      position:"absolute", left:pos.x, top:pos.y, width:maxW, zIndex:win.z,
-      border:"1px solid var(--gold-border)", background:"var(--surface)",
-      boxShadow:"0 0 0 1px var(--gold-dim), 0 24px 64px rgba(0,0,0,0.5)",
-      display:"flex", flexDirection:"column", maxHeight:"calc(100vh - 180px)",
-      animation:"fadeIn 0.18s ease",
+    <div onMouseDown={() => onFocus(id)} className={maximized ? "" : "float-window"} style={{
+      ...maxStyle,
+      background:"var(--surface)",
+      display:"flex", flexDirection:"column",
+      transition: maximized ? "none" : "box-shadow 0.2s ease",
     }}>
       {/* Title bar */}
       <div onMouseDown={onMD} style={{
-        display:"flex", alignItems:"center", gap:8, padding:"8px 12px",
-        background:"var(--surface2)", borderBottom:"1px solid var(--gold-border)",
-        cursor:"grab", userSelect:"none", flexShrink:0,
+        display:"flex", alignItems:"center", gap:10, padding:"9px 14px",
+        background:"var(--surface2)",
+        borderBottom:`1px solid ${maximized?"rgba(245,166,35,0.25)":"var(--gold-border)"}`,
+        cursor: maximized ? "default" : "grab",
+        userSelect:"none", flexShrink:0,
       }}>
-        <span style={{ color:"var(--gold)", fontSize:8 }}>◆</span>
+        <span style={{ color:"var(--gold)", fontSize:9 }}>◆</span>
         <span style={{ fontFamily:"var(--font-mono)", fontSize:"0.6rem", letterSpacing:"0.18em", textTransform:"uppercase", color:"var(--text1)", flex:1 }}>
           {title}
         </span>
-        {[
-          { icon:P.minus,    fn:()=>onMin(id),   hover:"var(--text3)" },
-          { icon:P.maximize, fn:()=>{},           hover:"var(--text3)" },
-          { icon:P.close,    fn:()=>onClose(id),  hover:"var(--red)" },
-        ].map((b,i)=>(
-          <button key={i} type="button" onClick={b.fn} style={{
-            width:20, height:20, display:"flex", alignItems:"center", justifyContent:"center",
-            background:"transparent", border:"none", cursor:"pointer",
-            color:"var(--text4)", transition:"color 0.12s",
-          }}
-          onMouseEnter={e=>(e.currentTarget.style.color=b.hover)}
-          onMouseLeave={e=>(e.currentTarget.style.color="var(--text4)")}>
-            <Ic d={b.icon} size={10}/>
+        {maximized && (
+          <span style={{fontSize:"0.44rem",color:"var(--gold)",letterSpacing:"0.1em",textTransform:"uppercase",marginRight:8,opacity:0.7}}>
+            MAXIMIZED
+          </span>
+        )}
+        {/* Window controls - traffic light style */}
+        <div style={{display:"flex",alignItems:"center",gap:6}}>
+          {/* Minimize */}
+          <button type="button" onClick={()=>onMin(id)} title="Minimize"
+            style={{width:14,height:14,borderRadius:"50%",border:"none",cursor:"pointer",
+              background:"var(--amber)",opacity:win.min?1:0.85,display:"flex",alignItems:"center",
+              justifyContent:"center",transition:"opacity 0.12s, transform 0.1s",flexShrink:0}}
+            onMouseEnter={e=>{e.currentTarget.style.opacity="1";e.currentTarget.style.transform="scale(1.15)";}}
+            onMouseLeave={e=>{e.currentTarget.style.opacity="0.85";e.currentTarget.style.transform="scale(1)";}}>
+            <span style={{color:"rgba(0,0,0,0.5)",fontSize:8,lineHeight:1,marginTop:"-1px"}}>—</span>
           </button>
-        ))}
+          {/* Maximize / restore */}
+          <button type="button" onClick={toggleMax} title={maximized?"Restore":"Maximize"}
+            style={{width:14,height:14,borderRadius:"50%",border:"none",cursor:"pointer",
+              background:"var(--green)",opacity:0.85,display:"flex",alignItems:"center",
+              justifyContent:"center",transition:"opacity 0.12s, transform 0.1s",flexShrink:0}}
+            onMouseEnter={e=>{e.currentTarget.style.opacity="1";e.currentTarget.style.transform="scale(1.15)";}}
+            onMouseLeave={e=>{e.currentTarget.style.opacity="0.85";e.currentTarget.style.transform="scale(1)";}}>
+            <span style={{color:"rgba(0,0,0,0.5)",fontSize:7,lineHeight:1}}>
+              {maximized ? "⊡" : "⊞"}
+            </span>
+          </button>
+          {/* Close */}
+          <button type="button" onClick={()=>onClose(id)} title="Close"
+            style={{width:14,height:14,borderRadius:"50%",border:"none",cursor:"pointer",
+              background:"var(--red)",opacity:0.85,display:"flex",alignItems:"center",
+              justifyContent:"center",transition:"opacity 0.12s, transform 0.1s",flexShrink:0}}
+            onMouseEnter={e=>{e.currentTarget.style.opacity="1";e.currentTarget.style.transform="scale(1.15)";}}
+            onMouseLeave={e=>{e.currentTarget.style.opacity="0.85";e.currentTarget.style.transform="scale(1)";}}>
+            <span style={{color:"rgba(0,0,0,0.5)",fontSize:8,lineHeight:1}}>×</span>
+          </button>
+        </div>
       </div>
       {!win.min && <div style={{ flex:1, overflowY:"auto" }}>{children}</div>}
     </div>
@@ -1046,11 +1119,17 @@ export default function CommandCenter() {
           {openCount===0&&(
             <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",pointerEvents:"none"}}>
               <div style={{textAlign:"center",opacity:0.3}}>
-                <Image src="/viralclaw_avi.png" alt="ViralClaw" width={36} height={36}
-                  style={{objectFit:"contain",margin:"0 auto 14px"}} onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
-                <p style={{fontSize:"1.4rem",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:"var(--text1)",lineHeight:1.1}}>ViralClaw</p>
-                <p style={{fontSize:"0.5rem",letterSpacing:"0.2em",textTransform:"uppercase",color:"var(--text3)",marginTop:6}}>Synchronization intelligence layer</p>
-                <p style={{fontSize:"0.44rem",color:"var(--text3)",marginTop:16}}>Open a module from the sidebar or toolbar</p>
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:8}}>
+                  <Image src="/viralclaw_avi.png" alt="ViralClaw" width={30} height={30}
+                    style={{objectFit:"contain",flexShrink:0}} onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
+                  <p style={{fontSize:"1.4rem",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:"var(--text1)",lineHeight:1}}>ViralClaw</p>
+                </div>
+                <p style={{fontSize:"0.5rem",letterSpacing:"0.2em",textTransform:"uppercase",color:"var(--text3)",marginTop:2}}>Synchronization intelligence layer</p>
+                <p style={{fontSize:"0.52rem",color:"var(--gold)",letterSpacing:"0.1em",textTransform:"uppercase",
+  marginTop:16,padding:"6px 14px",border:"1px solid var(--gold-border)",
+  background:"var(--gold-dim)",display:"inline-block"}}>
+  Open a module from the sidebar or toolbar
+</p>
               </div>
             </div>
           )}
