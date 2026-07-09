@@ -8,6 +8,7 @@ type WinId = "signal" | "briefs" | "feed" | "analytics" | "settings";
 type Brief = {
   id: string; type: "alpha"|"content"; status: string;
   conviction: number; window: string; content: string; created_at: string;
+  chains?: string[]; signal_summary?: string;
 };
 interface WinState { id: WinId; open: boolean; z: number; x: number; y: number; min: boolean; }
 
@@ -342,7 +343,7 @@ function BriefsWin({ win, wm, briefs, loading, err }: {
   }
 
   return (
-    <Window id="briefs" title={`Briefs${pending>0?` · ${pending} pending`:""}`}
+    <Window id="briefs" title={pending>0?`Briefs · ${pending} pending`:"Briefs"}
       win={win} onFocus={wm.focus} onClose={wm.close} onMin={wm.min} w={860}>
       <div style={{display:"flex",height:"100%",minHeight:480}}>
         {/* List */}
